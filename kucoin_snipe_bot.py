@@ -223,6 +223,18 @@ def filterPairs(pairs):
             new_pairs.append(pair)
     return new_pairs
 
+def allocateFunds(pairs):
+    """
+    This function allocates a % of the total balance to each tradeable
+    Pair
+    """
+    funds = {}
+    number_of_pairs = len(pairs)
+    percentage_for_each = 100 / number_of_pairs
+    for pair in pairs:
+        funds[pair] = percentage_for_each
+    return funds
+
 def queryCEXKucoin ():
     safe_list = dict()
     trading_pairs = []
@@ -270,6 +282,7 @@ def main():
             if len(pairs_to_trade) > 1:
                 logger.info('{} pairs available to trade!'.format(len(pairs_to_trade)))
                 filtered_pairs = filterPairs(pairs_to_trade)
+                funds = allocateFunds(filtered_pairs)
 
                 for trade_signal in filtered_pairs:
                     symbolDetail = getSymbolDetail(client,trade_signal)
@@ -283,56 +296,58 @@ def main():
                     #logger.info ("quotecurrency: {}".format(quoteCurr))
                     current_price = client.publicGetMarketStats({"symbol":trade_signal})['data']['last']
                     account_balance = getAccountBalance(client,quoteCurr)
-                    size = clean(account_balance,symbolDetail,current_price,"buy",100)
+                    #risk percentage
+                    riskP = funds[trade_signal]
+                    size = clean(account_balance,symbolDetail,current_price,"buy",riskP)
 
-                if size > minSize and size < maxSize:
-                    try:
-                        symbol_for_trade = baseCurr + '/' + quoteCurr
-                        
-                        order = custom_market_buy_order(client,symbol_for_trade,size)
+                    if size > minSize and size < maxSize:
                         try:
-                            orderId = order["orderId"]
-                            if orderId:
-                                logger.info("Successfully opened a trade on {0} with order_id {1}".format(symbol_for_trade,orderId))
-                                #Can't find a way to get the opening price of an order
-                                #So I use the last price.
-                                open_price = client.publicGetMarketStats({"symbol":trade_signal})['data']['last']
-                                monitoring.append({
-                                    'symbol': trade_signal,
-                                    'openPrice': open_price
-                                    })
-                                pairs_to_trade.remove(trade_signal)
-                                filtered_pairs.remove(trade_signal)
-                        except KeyError:
-                            logger.info("Could not place order!")
+                            symbol_for_trade = baseCurr + '/' + quoteCurr
+                            
+                            order = custom_market_buy_order(client,symbol_for_trade,size)
+                            try:
+                                orderId = order["orderId"]
+                                if orderId:
+                                    logger.info("Successfully opened a trade on {0} with order_id {1}".format(symbol_for_trade,orderId))
+                                    #Can't find a way to get the opening price of an order
+                                    #So I use the last price.
+                                    open_price = client.publicGetMarketStats({"symbol":trade_signal})['data']['last']
+                                    monitoring.append({
+                                        'symbol': trade_signal,
+                                        'openPrice': open_price
+                                        })
+                                    pairs_to_trade.remove(trade_signal)
+                                    filtered_pairs.remove(trade_signal)
+                            except KeyError:
+                                logger.info("Could not place order!")
 
-                    except Exception as err: 
-                        logger.info('Could not place order! This error Occurred - {}'.format(err))
-                
-                else:
-                    size = maxSize
-                    try:
-                        symbol_for_trade = baseCurr + '/' + quoteCurr
-                        
-                        order = custom_market_buy_order(client,symbol_for_trade,size)
+                        except Exception as err: 
+                            logger.info('Could not place order! This error Occurred - {}'.format(err))
+                    
+                    else:
+                        size = maxSize
                         try:
-                            orderId = order["orderId"]
-                            if orderId:
-                                logger.info("Successfully opened a trade on {0} with order_id {1}".format(symbol_for_trade,orderId))
-                                #Can't find a way to get the opening price of an order
-                                #So I use the last price.
-                                open_price = client.publicGetMarketStats({"symbol":trade_signal})['data']['last']
-                                monitoring.append({
-                                    'symbol': trade_signal,
-                                    'openPrice': open_price
-                                    })
-                                pairs_to_trade.remove(trade_signal)
-                                filtered_pairs.remove(trade_signal)
-                        except KeyError:
-                            logger.info("Could not place order!")
+                            symbol_for_trade = baseCurr + '/' + quoteCurr
+                            
+                            order = custom_market_buy_order(client,symbol_for_trade,size)
+                            try:
+                                orderId = order["orderId"]
+                                if orderId:
+                                    logger.info("Successfully opened a trade on {0} with order_id {1}".format(symbol_for_trade,orderId))
+                                    #Can't find a way to get the opening price of an order
+                                    #So I use the last price.
+                                    open_price = client.publicGetMarketStats({"symbol":trade_signal})['data']['last']
+                                    monitoring.append({
+                                        'symbol': trade_signal,
+                                        'openPrice': open_price
+                                        })
+                                    pairs_to_trade.remove(trade_signal)
+                                    filtered_pairs.remove(trade_signal)
+                            except KeyError:
+                                logger.info("Could not place order!")
 
-                    except Exception as err: 
-                        logger.info('Could not place order! This error Occurred - {}'.format(err))
+                        except Exception as err: 
+                            logger.info('Could not place order! This error Occurred - {}'.format(err))
 
             else:
                 logger.info("No new pair(s) found")
