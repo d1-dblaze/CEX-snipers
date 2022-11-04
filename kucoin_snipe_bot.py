@@ -1,9 +1,13 @@
+import os
 import ccxt
 import logging
 import logging.handlers
 import time
-from uuid import uuid1
 import decimal
+from uuid import uuid1
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def getmylogger(name):
     formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] [MODULE::%(module)s] [MESSAGE]:: %(message)s')
@@ -26,10 +30,9 @@ logger = getmylogger(__name__)
 
 def libraryConnect():
 
-    API_KEY = ''
-    API_SECRET = ''
-    PASSPHRASE = ''
-
+    API_KEY = os.getenv('KUCOIN_API_KEY')
+    API_SECRET = os.getenv('KUCOIN_API_SECRET_KEY')
+    PASSPHRASE = os.getenv('KUCOIN_PASSPHRASE')
     handle = ccxt.kucoin({
         'apiKey': API_KEY,
         'secret': API_SECRET,
@@ -267,7 +270,7 @@ def main():
             if len(pairs_to_trade) > 1:
                 logger.info('{} pairs available to trade!'.format(len(pairs_to_trade)))
                 filtered_pairs = filterPairs(pairs_to_trade)
-                
+
                 for trade_signal in filtered_pairs:
                     symbolDetail = getSymbolDetail(client,trade_signal)
                     minSize = float(symbolDetail['baseMinSize'])
