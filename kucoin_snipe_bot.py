@@ -236,13 +236,18 @@ def allocateFunds(pairs):
     return funds
 
 def queryCEXKucoin ():
+    """
+    This function queries Kucoin, fetches the market list, and whitelist
+    only spot markets. 
+    """
     safe_list = dict()
     trading_pairs = []
     tokens = []
     try: 
         symbolList = client.fetch_markets()
         for symbolObject in symbolList:
-            if symbolObject['spot'] == True:
+            #if symbol is on the spot market and already trading
+            if symbolObject['spot'] == True and symbolObject['info']['enableTrading'] == True:
                 trading_pairs.append(symbolObject['info']['symbol'])           
                 if symbolObject['info']['baseCurrency'] not in tokens:
                     tokens.append(symbolObject['info']['baseCurrency'])
@@ -250,7 +255,7 @@ def queryCEXKucoin ():
         safe_list['Pairs'] = trading_pairs
         logger.info("Market successfully retrieved from kucoin!")           
     except Exception as err:
-        logger.info("Failed to get Pairs")
+        logger.info("Failed to get Market List")
         logger.info("ERROR - {}".format(err))
 
     return safe_list
