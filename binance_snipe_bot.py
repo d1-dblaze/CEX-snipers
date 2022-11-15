@@ -45,7 +45,7 @@ def libraryConnect():
 
 def return_unique_id():
     return ''.join([each for each in str(uuid1()).split('-')])
-
+#check
 def checkOrderResponse(response):
     try:
         if isinstance(response,dict):
@@ -167,7 +167,7 @@ def clean (accountBalance,current_price,side,riskP):
         size_to_exchange = round(size)
 
     return float(size_to_exchange)
-
+#check
 def getAccountBalance (client,currency):
     logger.info ("======Retrieving account Details======")
     acctInfo = client.privateGetAccounts({"currency":currency})['data'] 
@@ -191,7 +191,7 @@ def writeToFile (filename):
     with open ("{}".format(filename), "a") as file:
         file.write(str(client.fetch_markets()))
 
-def filterPairs(pairs):
+def filterPairs(client,pairs):
     """
     This function filter symbols with multiple pair and only
     choose one out of the multiple pairs. For example, it chooses
@@ -202,7 +202,7 @@ def filterPairs(pairs):
     new_pairs = []
     symbols = []
     for pair in pairs:
-        dt = getSymbolDetail(pair)
+        dt = getSymbolDetail(client,pair)
         logger.info(dt)
         base_asset = dt['baseAsset']
         if base_asset not in symbols:
@@ -273,7 +273,7 @@ def main():
             
             if len(pairs_to_trade) > 1:
                 logger.info('{} pairs available to trade!'.format(len(pairs_to_trade)))
-                filtered_pairs = filterPairs(pairs_to_trade)
+                filtered_pairs = filterPairs(client,pairs_to_trade)
                 funds = allocateFunds(filtered_pairs)
 
                 for trade_signal in filtered_pairs:
