@@ -321,7 +321,7 @@ def main():
                         except Exception as err: 
                             logger.info('Could not place order! This error Occurred - {}'.format(err))
                     
-                    else:
+                    elif size > maxSize:
                         size = maxSize
                         try:
                             symbol_for_trade = baseCurr + '/' + quoteCurr
