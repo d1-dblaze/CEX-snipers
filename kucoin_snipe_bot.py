@@ -311,7 +311,7 @@ def main():
                             
                             order = custom_market_buy_order(client,symbol_for_trade,size)
                             try:
-                                orderId = order["orderId"]
+                                orderId = order['info']["orderId"]
                                 if orderId:
                                     logger.info("Successfully opened a trade on {0} with order_id {1}".format(symbol_for_trade,orderId))
                                     #Can't find a way to get the opening price of an order
