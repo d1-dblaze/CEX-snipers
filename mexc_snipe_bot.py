@@ -238,6 +238,7 @@ def queryCEXMEXC():
     safe_list = dict()
     trading_pairs = []
     tokens = []
+    time.sleep(1)
     try: 
         symbolList = client.fetch_markets()
         for symbolObject in symbolList:
