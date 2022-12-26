@@ -285,7 +285,7 @@ def main():
                     old_symbol_dict['Pairs'].append(pair)
                     logger.info("New Pair found. Adding to list of tradeable pairs!")
             
-            if len(pairs_to_trade) > 1:
+            if len(pairs_to_trade) > 0:
                 logger.info('{} pairs available to trade!'.format(len(pairs_to_trade)))
                 filtered_pairs = filterPairs(client,pairs_to_trade)
                 funds = allocateFunds(filtered_pairs)
@@ -337,7 +337,7 @@ def main():
                             
                             order = custom_market_buy_order(client,symbol_for_trade,size)
                             try:
-                                orderId = order["orderId"]
+                                orderId = order['info']["orderId"]
                                 if orderId:
                                     logger.info("Successfully opened a trade on {0} with order_id {1}".format(symbol_for_trade,orderId))
                                     #Can't find a way to get the opening price of an order

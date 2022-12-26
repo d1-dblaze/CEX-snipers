@@ -185,6 +185,8 @@ def getAccountBalance (client,currency):
     for asset in acctInfo["balances"]:
         if asset['asset'] == currency:
             availableBalance = asset['free']
+            #test
+            logger.info('Available balance: {}'.format(availableBalance))
             return float(availableBalance)
 
 def getSymbolDetail (client, symbol):
@@ -238,7 +240,7 @@ def queryCEXMEXC():
     safe_list = dict()
     trading_pairs = []
     tokens = []
-    time.sleep(1)
+    time.sleep(2)
     try: 
         symbolList = client.fetch_markets()
         for symbolObject in symbolList:
@@ -282,7 +284,7 @@ def main():
                     old_symbol_dict['Pairs'].append(pair)
                     logger.info("New Pair found. Adding to list of tradeable pairs!")
             
-            if len(pairs_to_trade) > 1:
+            if len(pairs_to_trade) > 0:
                 logger.info('{} pairs available to trade!'.format(len(pairs_to_trade)))
                 filtered_pairs = filterPairs(client,pairs_to_trade)
                 account_balance = getAccountBalance(client,"USDT")
