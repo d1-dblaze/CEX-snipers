@@ -263,6 +263,9 @@ def main():
     old_symbol_dict = dict()
     pairs_to_trade = []
     monitoring = []
+    #list of supported assets
+    supportedAsset = ['USDT'] #['USDT','USDC','BUSD','DAI']
+    useAllAssets = False
     client = libraryConnect()
     n = 0
     while True:
@@ -303,6 +306,13 @@ def main():
                     #qSize
                     qsize = funds[trade_signal]
 
+                    #check if the useAllAssets is false, then
+                    #check if the quotecurrency is a supported asset.
+                    #If it is not, remove the asset from the list of tradeable assets.
+                    if useAllAssets == False and quoteCurr not in supportedAsset:
+                        filtered_pairs.remove(trade_signal)
+                        continue
+
                     if qsize > minSize_USDT and qsize < maxSize_USDT:
                         try:
                             order = custom_market_buy_order(client,trade_signal,qsize)
@@ -312,8 +322,6 @@ def main():
                                 if orderId:
                                     logger.info("Successfully opened a trade on {0} with order_id {1}".format(trade_signal,orderId))
                                     #check
-                                    #Can't find a way to get the opening price of an order
-                                    #So I use the last price.
                                     open_price = order['price']
                                     monitoring.append({
                                         'symbol': trade_signal,
@@ -335,8 +343,7 @@ def main():
                                 orderId = order["orderId"]
                                 if orderId:
                                     logger.info("Successfully opened a trade on {0} with order_id {1}".format(trade_signal,orderId))
-                                    #Can't find a way to get the opening price of an order
-                                    #So I use the last price.
+                                    #check
                                     open_price = order['price']
                                     monitoring.append({
                                         'symbol': trade_signal,
@@ -374,6 +381,7 @@ def main():
                     custom_market_sell_order(client,trade["symbol"],size)
                     logger.info("{} was stopped out with a 20% loss".format(trade["symbol"]))
                     monitoring.remove(trade)
+                    
         time.sleep(1)
 
 if __name__ == "__main__":

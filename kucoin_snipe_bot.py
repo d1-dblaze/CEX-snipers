@@ -313,7 +313,7 @@ def main():
                     #check if the useAllAssets is false, then
                     #check if the quotecurrency is a supported asset.
                     #If it is not, remove the asset from the list of tradeable assets.
-                    if  useAllAssets == False and quoteCurr not in supportedAsset:
+                    if useAllAssets == False and quoteCurr not in supportedAsset:
                         filtered_pairs.remove(trade_signal)
                         continue
 
