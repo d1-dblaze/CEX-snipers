@@ -172,6 +172,7 @@ def clean (accountBalance,details,current_price,side,riskP):
         size_to_exchange = round(size,decimalP)
         #if side is sell, sell 100% of the asset.
     elif side == 'sell':
+        #@to_do: remove the risk percentage and just sell everything
         size = decimal.Decimal(risk/100 * accountBalance) * decimal.Decimal(1)
         size_to_exchange = round(size,decimalP)
 
@@ -359,7 +360,8 @@ def main():
                 logger.info("No new pair(s) found")
                 
             
-            for trade in monitoring:     
+            for trade in monitoring:    
+                logger.info("Checking pairs in the monitoring list") 
                 symbolDetail = getSymbolDetail(client,trade['symbol'])     
                 minSize = float(symbolDetail['baseMinSize'])
                 #logger.info('minsize: {}'.format(minSize))
@@ -373,12 +375,19 @@ def main():
                 current_price = client.publicGetMarketStats({"symbol":trade["symbol"]})['data']['last']
                 #target price is 20% greater than the opening price.
                 target_price = trade["openPrice"] + (0.2 * trade["openPrice"])
+                #At the moment, stop_loss is 20% lower than the opening price
+                stop_loss = trade["openPrice"] - (0.2 * trade["openPrice"])
                 size = clean(account_balance,symbolDetail,current_price,"sell",100)
                     
                 if current_price >= target_price:
                     custom_market_sell_order(client,trade["symbol"],size)
-                    logger.info("Pair {} succesfully closede with a 20% gain".format(trade["symbol"]))
+                    logger.info("Pair {} succesfully closed with a 20% gain".format(trade["symbol"]))
                     monitoring.remove(trade)
+                if current_price <= stop_loss:
+                    custom_market_sell_order(client,trade["symbol"],size)
+                    logger.info("{} was stopped out with a 20% loss".format(trade["symbol"]))
+                    monitoring.remove(trade)
+                    
         time.sleep(1)
 
 if __name__ == "__main__":

@@ -353,7 +353,8 @@ def main():
             else:
                 logger.info("No new pair(s) found")
                            
-            for trade in monitoring:     
+            for trade in monitoring: 
+                logger.info("Checking pairs in the monitoring list")    
                 symbolDetail = getSymbolDetail(client,trade['symbol'])    
                 baseCurr = symbolDetail['baseAsset']
                 prec = symbolDetail['baseAssetPrecision']
@@ -361,11 +362,17 @@ def main():
                 account_balance = getAccountBalance(client,baseCurr)
                 #target price is 20% greater than the opening price.
                 target_price = trade["openPrice"] + (0.2 * trade["openPrice"])
+                #At the moment, stop_loss is 20% lower than the opening price
+                stop_loss = trade["openPrice"] - (0.2 * trade["openPrice"])
                 size = round(account_balance,prec)
                     
                 if current_price >= target_price:
                     custom_market_sell_order(client,trade["symbol"],size)
-                    logger.info("Pair {} succesfully closede with a 20% gain".format(trade["symbol"]))
+                    logger.info("Pair {} succesfully closed with a 20% gain".format(trade["symbol"]))
+                    monitoring.remove(trade)
+                if current_price <= stop_loss:
+                    custom_market_sell_order(client,trade["symbol"],size)
+                    logger.info("{} was stopped out with a 20% loss".format(trade["symbol"]))
                     monitoring.remove(trade)
         time.sleep(1)
 
