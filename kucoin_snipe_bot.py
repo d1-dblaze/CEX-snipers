@@ -267,6 +267,9 @@ def main():
     old_symbol_dict = dict()
     pairs_to_trade = []
     monitoring = []
+    #list of supported assets
+    supportedAsset = ['USDT'] #['USDT','USDC','BUSD','DAI']
+    useAllAssets = False
     client = libraryConnect()
     n = 0
     while True:
@@ -306,6 +309,13 @@ def main():
                     #risk percentage
                     riskP = funds[trade_signal]
                     size = clean(account_balance,symbolDetail,current_price,"buy",riskP)
+
+                    #check if the useAllAssets is false, then
+                    #check if the quotecurrency is a supported asset.
+                    #If it is not, remove the asset from the list of tradeable assets.
+                    if  useAllAssets == False and quoteCurr not in supportedAsset:
+                        filtered_pairs.remove(trade_signal)
+                        continue
 
                     if size > minSize and size < maxSize:
                         try:
