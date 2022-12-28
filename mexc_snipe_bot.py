@@ -305,7 +305,7 @@ def main():
                     #logger.info ("quoteAsset: {}".format(quoteCurr))
                     #qSize
                     qsize = funds[trade_signal]
-
+                    logger.info("size to buy: {}".format(qsize))
                     #check if the useAllAssets is false, then
                     #check if the quotecurrency is a supported asset.
                     #If it is not, remove the asset from the list of tradeable assets.

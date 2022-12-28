@@ -171,7 +171,7 @@ def clean (accountBalance,details,current_price,side,riskP):
         size = decimal.Decimal(risk/100 * accountBalance) / decimal.Decimal(current_price)
         size_to_exchange = round(size,decimalP)
         #if side is sell, sell 100% of the asset.
-    elif side == 'sell':
+    elif side == "sell":
         #@to_do: remove the risk percentage and just sell everything
         size = decimal.Decimal(risk/100 * accountBalance) * decimal.Decimal(1)
         size_to_exchange = round(size,decimalP)
@@ -305,10 +305,12 @@ def main():
                     quoteCurr = symbolDetail['quoteCurrency']
                     #logger.info ("quotecurrency: {}".format(quoteCurr))
                     current_price = client.publicGetMarketStats({"symbol":trade_signal})['data']['last']
+                    logger.info("Current price: {}".format(current_price))
                     account_balance = getAccountBalance(client,quoteCurr)
                     #risk percentage
                     riskP = funds[trade_signal]
                     size = clean(account_balance,symbolDetail,current_price,"buy",riskP)
+                    logger.info("size to buy: {}".format(size))
 
                     #check if the useAllAssets is false, then
                     #check if the quotecurrency is a supported asset.
