@@ -4,6 +4,7 @@ import logging
 import logging.handlers
 import time
 import decimal
+import json
 from uuid import uuid1
 from dotenv import load_dotenv
 
@@ -12,11 +13,11 @@ load_dotenv()
 def getmylogger(name):
     formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] [MODULE::%(module)s] [MESSAGE]:: %(message)s')
     
-    file_handler = logging.handlers.TimedRotatingFileHandler("snipe_bot.log",when= "midnight")
+    file_handler = logging.handlers.TimedRotatingFileHandler("scanner.log",when= "midnight")
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(logging.DEBUG)
     console_handler.setFormatter(formatter) 
 
     loggerHandle = logging.getLogger(name)
@@ -201,6 +202,19 @@ def writeToFile (filename):
     with open ("{}".format(filename), "a") as file:
         file.write(str(client.fetch_markets()))
 
+def dump(potential_trades):
+    with open("/root/snipeBot/kucoin_potential_trades.json","r") as trade_list:
+        data = json.load(trade_list)
+        for obj in potential_trades:
+            for dataObj in data:
+                #if the trade_signal already exist in the file, don't dump
+                if obj['trade_signal'] == dataObj['trade_signal']:
+                    potential_trades.remove(obj)
+                    logger.info("{} already exist in the file. Removing".format(dataObj['trade_signal']))
+    
+    with open("/root/snipeBot/kucoin_potential_trades.json","w") as trade_list:
+        json.dump(potential_trades,trade_list)
+
 def buildPair(base,quote):
     symbol = base.upper() + '-' + quote.upper()
     return symbol
@@ -222,18 +236,41 @@ def filterPairs(client,pairs):
         if base_asset not in symbols:
             symbols.append(base_asset)
             new_pairs.append(pair)
-    return new_pairs
 
-def allocateFunds(pairs):
+    logger.info("Pairs before filtering: {}".format(new_pairs))        
+    #remove all ETF pairs        
+    filtered_pair = filterETFPairs(new_pairs)
+    logger.info("Pairs after filtering: {}".format(filtered_pair))
+    return filtered_pair
+
+def filterETFPairs(pairs):
     """
-    This function allocates a % of the total balance to each tradeable
-    Pair
+    This function filters out those ETF pairs e.g AXS3s, MINA3L
     """
+
+    for pair in pairs:
+        if "3L" in pair or "3S" in pair:
+            pairs.remove(pair)
+    
+    return pairs
+
+def allocateFunds(pairs,account_balance):
+    """
+    This function allocates equal funds to each tradeable
+    Pair.
+    Returns a dict
+    """
+    decimal.getcontext().rounding = decimal.ROUND_DOWN
     funds = {}
     number_of_pairs = len(pairs)
-    percentage_for_each = 100 / number_of_pairs
+    if number_of_pairs > 0:
+        fund_for_each = decimal.Decimal(account_balance) / decimal.Decimal(number_of_pairs)
+    else:
+        return
+    
     for pair in pairs:
-        funds[pair] = percentage_for_each
+        funds[pair] = round(float(fund_for_each),3)
+    logger.info("funds: {}".format(funds))    
     return funds
 
 def queryCEXKucoin ():
@@ -244,21 +281,28 @@ def queryCEXKucoin ():
     safe_list = dict()
     trading_pairs = []
     tokens = []
-    time.sleep(1)
-    try: 
-        symbolList = client.fetch_markets()
-        for symbolObject in symbolList:
-            #if symbol is on the spot market and already trading
-            if symbolObject['spot'] == True and symbolObject['info']['enableTrading'] == True:
-                trading_pairs.append(symbolObject['info']['symbol'])           
-                if symbolObject['info']['baseCurrency'] not in tokens:
-                    tokens.append(symbolObject['info']['baseCurrency'])
-        safe_list['Symbols'] = tokens
-        safe_list['Pairs'] = trading_pairs
-        logger.info("Market successfully retrieved from kucoin!")           
-    except Exception as err:
-        logger.info("Failed to get Market List")
-        logger.info("ERROR - {}".format(err))
+    status = False
+    while status == False:
+
+        try: 
+            symbolList = client.fetch_markets()    
+        except Exception as err:
+            logger.info("Failed to get Market List")
+            logger.info("ERROR - {}".format(err))
+            time.sleep(2)
+            continue
+        else:
+            status = True
+            time.sleep(1)
+            for symbolObject in symbolList:
+                #if symbol is on the spot market and already trading
+                if symbolObject['spot'] == True and symbolObject['info']['enableTrading'] == True:
+                    trading_pairs.append(symbolObject['info']['symbol'])           
+                    if symbolObject['info']['baseCurrency'] not in tokens:
+                        tokens.append(symbolObject['info']['baseCurrency'])
+            safe_list['Symbols'] = tokens
+            safe_list['Pairs'] = trading_pairs
+            logger.info("Market successfully retrieved from kucoin!")  
 
     return safe_list
 
@@ -266,7 +310,7 @@ def main():
     global client
     old_symbol_dict = dict()
     pairs_to_trade = []
-    monitoring = []
+    potential_trades = []
     #list of supported assets
     supportedAsset = ['USDT'] #['USDT','USDC','BUSD','DAI']
     useAllAssets = False
@@ -274,10 +318,16 @@ def main():
     n = 0
     while True:
         if n < 1 :
-            old_symbol_dict = queryCEXKucoin()
-            n = n+1
+            try:
+                old_symbol_dict = queryCEXKucoin()
+                n = n+1
+            except Exception:
+                time.sleep(2)
+                continue
         else:
+
             new_symbol_dict = queryCEXKucoin()
+
             for symbol in new_symbol_dict['Symbols']:
                 if symbol not in old_symbol_dict['Symbols']:
                     symbol_to_trade = symbol
@@ -292,7 +342,12 @@ def main():
             if len(pairs_to_trade) > 0:
                 logger.info('{} pairs available to trade!'.format(len(pairs_to_trade)))
                 filtered_pairs = filterPairs(client,pairs_to_trade)
-                funds = allocateFunds(filtered_pairs)
+                account_balance = getAccountBalance(client,"USDT")
+                try:
+                    funds = allocateFunds(filtered_pairs,account_balance)
+                except Exception: 
+                    logger.info("Can't allocate funds to tradeable pair")    
+                
 
                 for trade_signal in filtered_pairs:
                     symbolDetail = getSymbolDetail(client,trade_signal)
@@ -304,25 +359,44 @@ def main():
                     #logger.info ("basecurrency: {}".format(baseCurr))
                     quoteCurr = symbolDetail['quoteCurrency']
                     #logger.info ("quotecurrency: {}".format(quoteCurr))
-                    current_price = client.publicGetMarketStats({"symbol":trade_signal})['data']['last']
+                    current_price = client.publicGetMarketStats({"symbol": trade_signal})['data']['last']
                     logger.info("Current price: {}".format(current_price))
-                    account_balance = getAccountBalance(client,quoteCurr)
+                    # keep retrying the loop till you can get the currently trading price.
+                    # the thing is, there are cases where the pair might not have started trading but visible through the api
+                    if current_price == None:
+                        logger.info("Time at which there is no price: {}".format(time.gmtime()))
+                        continue
+                    #account_balance = getAccountBalance(client,"USDT")
                     #risk percentage
-                    riskP = funds[trade_signal]
-                    size = clean(account_balance,symbolDetail,current_price,"buy",riskP)
-                    logger.info("size to buy: {}".format(size))
-
+                    #riskP = funds[trade_signal]
+                    #size = clean(account_balance,symbolDetail,current_price,"buy",riskP)
+                    logger.info("Time at which there is price: {}".format(time.gmtime()))
+                    size = funds[trade_signal]
+                    
                     #check if the useAllAssets is false, then
                     #check if the quotecurrency is a supported asset.
                     #If it is not, remove the asset from the list of tradeable assets.
                     if useAllAssets == False and quoteCurr not in supportedAsset:
                         filtered_pairs.remove(trade_signal)
+                        old_symbol_dict['Pairs'].append(trade_signal)
+                        logger.info("{} has been removed as the base asset is not supported".format(trade_signal))
                         continue
+                    
+                    potential_trades.append({
+                        "trade_signal": trade_signal,
+                        "baseCurr":     baseCurr,
+                        "quoteCurr":    quoteCurr,
+                        "minSize":      minSize,
+                        "maxSize":      maxSize,
+                        "size":         size
+                    })
+                    logger.info("Potential trades: {}".format(potential_trades))
+                    dump(potential_trades)
 
-                    if size > minSize and size < maxSize:
+                    """if size > minSize and size < maxSize:
                         try:
                             symbol_for_trade = baseCurr + '/' + quoteCurr
-                            
+                            logger.info("Trying to place an order!")
                             order = custom_market_buy_order(client,symbol_for_trade,size)
                             try:
                                 orderId = order['info']["orderId"]
@@ -335,6 +409,8 @@ def main():
                                         'symbol': trade_signal,
                                         'openPrice': open_price
                                         })
+                                    #dump the monitoring list to a file.
+                                    dump(monitoring)
                                     pairs_to_trade.remove(trade_signal)
                                     filtered_pairs.remove(trade_signal)
                             except KeyError:
@@ -360,6 +436,8 @@ def main():
                                         'symbol': trade_signal,
                                         'openPrice': open_price
                                         })
+                                        #dump the monitoring list to a file.
+                                    dump(monitoring)
                                     pairs_to_trade.remove(trade_signal)
                                     filtered_pairs.remove(trade_signal)
                             except KeyError:
@@ -367,11 +445,12 @@ def main():
 
                         except Exception as err: 
                             logger.info('Could not place order! This error Occurred - {}'.format(err))
+                    """
 
             else:
-                logger.info("No new pair(s) found")
+                logger.debug("No new pair(s) found")
                 
-            
+            """
             for trade in monitoring:    
                 logger.info("Checking pairs in the monitoring list") 
                 symbolDetail = getSymbolDetail(client,trade['symbol'])     
@@ -383,13 +462,14 @@ def main():
                 #logger.info ("basecurrency: {}".format(baseCurr))
                 quoteCurr = symbolDetail['quoteCurrency']
                 #logger.info ("quotecurrency: {}".format(quoteCurr))
-                account_balance = getAccountBalance(client,quoteCurr)   
+                account_balance = getAccountBalance(client,baseCurr)   
                 current_price = client.publicGetMarketStats({"symbol":trade["symbol"]})['data']['last']
                 #target price is 20% greater than the opening price.
                 target_price = trade["openPrice"] + (0.2 * trade["openPrice"])
                 #At the moment, stop_loss is 20% lower than the opening price
                 stop_loss = trade["openPrice"] - (0.2 * trade["openPrice"])
                 size = clean(account_balance,symbolDetail,current_price,"sell",100)
+                logger.info("size to sell: {}".format(size))
                     
                 if current_price >= target_price:
                     custom_market_sell_order(client,trade["symbol"],size)
@@ -400,6 +480,8 @@ def main():
                     logger.info("{} was stopped out with a 20% loss".format(trade["symbol"]))
                     monitoring.remove(trade)
                     
+            """
+    
         time.sleep(1)
 
 if __name__ == "__main__":
