@@ -3,7 +3,6 @@ import ccxt
 import logging
 import logging.handlers
 import time
-import decimal
 import json
 from uuid import uuid1
 from dotenv import load_dotenv
@@ -112,7 +111,7 @@ def readTradeList():
     Reads and returns the data from the trade list file.
     """
     try:
-        with open("/root/snipeBot/v1/kucoin_potential_trades.json", 'r') as trade_list:
+        with open("/root/snipeBot/kucoin_potential_trades.json", 'r') as trade_list:
             data = json.load(trade_list)
         return data
     except FileNotFoundError:
@@ -127,10 +126,10 @@ def rewrite(trade):
     Rewrites the trade list file after removing the specified trade.
     """
     try:
-        with open("/root/snipeBot/v1/kucoin_potential_trades.json", 'r') as trade_list:
+        with open("/root/snipeBot/kucoin_potential_trades.json", 'r') as trade_list:
             data = json.load(trade_list)
             data.remove(trade)
-        with open("/root/snipeBot/v1/kucoin_potential_trades.json", 'w') as trade_list:
+        with open("/root/snipeBot/kucoin_potential_trades.json", 'w') as trade_list:
             json.dump(data, trade_list)
     except FileNotFoundError:
         logger.error("Trade list file not found.")
@@ -142,7 +141,7 @@ def dump(monitoring):
     Dumps the monitoring data to the trade list file.
     """
     try:
-        with open("/root/snipeBot/v1/kucoin_trade_list.json", "w") as trade_list:
+        with open("/root/snipeBot/kucoin_trade_list.json", "w") as trade_list:
             json.dump(monitoring, trade_list)
     except FileNotFoundError:
         logger.error("Trade list file not found.")
@@ -173,7 +172,7 @@ def main():
                     logger.error("Error processing trade: {}".format(err))
 
         else:
-            logger.info("No trade object found in trade list")
+            logger.debug("No trade object found in trade list")
 
         time.sleep(1)
 
@@ -207,7 +206,7 @@ def place_market_buy_order(client, base_currency, quote_currency, trade_signal, 
             update_monitoring_list(trade_signal, open_price)
             rewrite(trade)
         else:
-            logger.info("Could not place order!")
+            logger.info("Market buy was not sucessful!")
 
     except Exception as err:
         logger.error("Could not place order! Error occurred - {}".format(err))

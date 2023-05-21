@@ -119,7 +119,7 @@ def clean(account_balance, details, current_price, side, risk_percentage):
         float: The cleaned and calculated order size.
 
     """
-    logger.info("Cleaning data")
+    logger.debug("Cleaning data")
 
     decimal.getcontext().rounding = decimal.ROUND_DOWN
 
@@ -132,7 +132,7 @@ def clean(account_balance, details, current_price, side, risk_percentage):
     # Determine the number of decimal places for rounding.
     decimal_places = len(base_increment.split(".")[-1])
 
-    logger.info("The order size should be rounded to %d decimal places", decimal_places)
+    logger.debug("The order size should be rounded to %d decimal places", decimal_places)
 
     # Calculate the order size based on the side of the trade.
     if side == "buy":
@@ -178,7 +178,7 @@ def readTradeList():
     Reads and returns the data from the trade list file.
     """
     try:
-        with open("/root/snipeBot/v1/kucoin_trade_list.json", 'r') as trade_list:
+        with open("/root/snipeBot/kucoin_trade_list.json", 'r') as trade_list:
             data = json.load(trade_list)
         return data
     except FileNotFoundError:
@@ -193,10 +193,10 @@ def rewrite(trade):
     Rewrites the trade list file after removing the specified trade.
     """
     try:
-        with open("/root/snipeBot/v1/kucoin_trade_list.json", 'r') as trade_list:
+        with open("/root/snipeBot/kucoin_trade_list.json", 'r') as trade_list:
             data = json.load(trade_list)
             data.remove(trade)
-        with open("/root/snipeBot/v1/kucoin_trade_list.json", 'w') as trade_list:
+        with open("/root/snipeBot/kucoin_trade_list.json", 'w') as trade_list:
             json.dump(data, trade_list)
     except FileNotFoundError:
         logger.error("Trade list file not found.")

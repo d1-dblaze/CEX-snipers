@@ -5,7 +5,6 @@ import logging.handlers
 import time
 import decimal
 import json
-from uuid import uuid1
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -120,7 +119,7 @@ def dump(potential_trades):
     Returns:
         None
     """
-    file_path = "/root/snipeBot/v1/kucoin_potential_trades.json"
+    file_path = "/root/snipeBot/kucoin_potential_trades.json"
 
     with open(file_path, "r") as trade_file:
         data = json.load(trade_file)
@@ -161,7 +160,7 @@ def filterPairs(client, pairs):
 
     for pair in pairs:
         symbol_detail = getSymbolDetail(client, pair)
-        logger.info(symbol_detail)
+        logger.debug(symbol_detail)
         base_asset = symbol_detail['baseCurrency']
 
         # Check if the base asset of the pair is already processed
@@ -169,12 +168,12 @@ def filterPairs(client, pairs):
             symbols.append(base_asset)
             new_pairs.append(pair)
 
-    logger.info("Pairs before filtering: {}".format(new_pairs))
+    logger.debug("Pairs before filtering: {}".format(new_pairs))
 
     # Remove ETF pairs
     filtered_pairs = filterETFPairs(new_pairs)
 
-    logger.info("Pairs after filtering: {}".format(filtered_pairs))
+    logger.debug("Pairs after filtering: {}".format(filtered_pairs))
     return filtered_pairs
 
 def filterETFPairs(pairs):
@@ -279,7 +278,7 @@ def queryCEXKucoin():
     safe_list['Symbols'] = tokens
     safe_list['Pairs'] = trading_pairs
 
-    logger.info("Market successfully retrieved from Kucoin!")
+    #logger.info("Market successfully retrieved from Kucoin!")
 
     # Return the dictionary containing the list of safe symbols and trading pairs
     return safe_list
@@ -303,7 +302,6 @@ def main():
                 time.sleep(2)
                 continue
         else:
-            set
             new_symbol_dict = queryCEXKucoin()
 
             for symbol in new_symbol_dict['Symbols']:
@@ -342,10 +340,10 @@ def main():
                     # keep retrying the loop till you can get the currently trading price.
                     # the thing is, there are cases where the pair might not have started trading but visible through the api
                     if current_price == None:
-                        logger.info("Time at which there is no price: {}".format(time.gmtime()))
+                        logger.debug("Time at which there is no price: {}".format(time.gmtime()))
                         continue
 
-                    logger.info("Time at which there is price: {}".format(time.gmtime()))
+                    logger.debug("Time at which there is price: {}".format(time.gmtime()))
                     size = funds[trade_signal]
                     
                     #check if the useAllAssets is false, then
