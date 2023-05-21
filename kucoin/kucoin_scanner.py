@@ -59,140 +59,6 @@ def libraryConnect():
 
     return handle
 
-def return_unique_id():
-    return ''.join([each for each in str(uuid1()).split('-')])
-
-def custom_market_buy_order (client,symbol,size):
-    """
-    Place a market buy order on Kucoin and handle errors with retries.
-
-    Args:
-        client: The CCXT client instance for Kucoin.
-        symbol (str): The trading symbol for the order.
-        size: The size or quantity to buy.
-
-    Returns:
-        dict or str: The order result if successful, or the encountered error.
-
-    """
-    # Retry counter and order status
-    counter = 0
-    status = False
-
-    while not status:
-        try:
-            time.sleep(1)  # Sleep for one second between requests
-            result = client.create_order(symbol, 'market', 'buy', size)
-            status = True  # Set status to true once the order is executed without errors
-            return result
-        except ccxt.RequestTimeout as e:
-            # Handle request timeout error
-            logger.info("Encountered request timeout error. Retrying order placement (Attempt {})".format(counter))
-            counter += 1
-            time.sleep(1)  # Sleep for one second between retries
-        except ccxt.ExchangeError as e:
-            error_message = str(e)
-            if 'Too many requests' in error_message:
-                # Handle rate limit error (Too many requests)
-                logger.info("Encountered rate limit error. Retrying order placement (Attempt {})".format(counter))
-                counter += 1
-                time.sleep(1)  # Sleep for one second between retries
-            else:
-                # Handle other exchange errors
-                logger.info("Error encountered while placing an order: {}".format(error_message))
-                return error_message
-        except Exception as e:
-            # Handle general exceptions
-            error_message = str(e)
-            logger.info("Error encountered while placing an order: {}".format(error_message))
-            return error_message
-
-def custom_market_sell_order(client, symbol, size):
-    """
-    Place a market sell order on Kucoin and handle errors with retries.
-
-    Args:
-        client: The CCXT client instance for Kucoin.
-        symbol (str): The trading symbol for the order.
-        size: The size or quantity to sell.
-
-    Returns:
-        dict or str: The order result if successful, or the encountered error.
-
-    """
-    # Retry counter and order status
-    counter = 0
-    status = False
-
-    while not status:
-        try:
-            time.sleep(1)  # Sleep for one second between requests
-            result = client.create_order(symbol, 'market', 'sell', size)
-            status = True  # Set status to true once the order is executed without errors
-            return result
-        except ccxt.RequestTimeout as e:
-            # Handle request timeout error
-            logger.info("Encountered request timeout error. Retrying order placement (Attempt {})".format(counter))
-            counter += 1
-            time.sleep(1)  # Sleep for one second between retries
-        except ccxt.ExchangeError as e:
-            error_message = str(e)
-            if 'Too many requests' in error_message:
-                # Handle rate limit error (Too many requests)
-                logger.info("Encountered rate limit error. Retrying order placement (Attempt {})".format(counter))
-                counter += 1
-                time.sleep(1)  # Sleep for one second between retries
-            else:
-                # Handle other exchange errors
-                logger.info("Error encountered while placing an order: {}".format(error_message))
-                return error_message
-        except Exception as e:
-            # Handle general exceptions
-            error_message = str(e)
-            logger.info("Error encountered while placing an order: {}".format(error_message))
-            return error_message
-
-def clean(account_balance, details, current_price, side, risk_percentage):
-    """
-    Clean and process data for order size calculation.
-
-    Args:
-        account_balance (float): The account balance to consider for risk calculation.
-        details (dict): Details of the trading pair or instrument.
-        current_price (float): The current price of the asset.
-        side (str): The side of the trade, either "buy" or "sell".
-        risk_percentage (float): The risk percentage to consider for order size calculation.
-
-    Returns:
-        float: The cleaned and calculated order size.
-
-    """
-    logger.info("Cleaning data")
-
-    decimal.getcontext().rounding = decimal.ROUND_DOWN
-
-    # Convert the risk percentage to float.
-    risk = float(risk_percentage)
-
-    # Extract the base increment value for order size calculation.
-    base_increment = details['baseIncrement']
-
-    # Determine the number of decimal places for rounding.
-    decimal_places = len(base_increment.split(".")[-1])
-
-    logger.info("The order size should be rounded to %d decimal places", decimal_places)
-
-    # Calculate the order size based on the side of the trade.
-    if side == "buy":
-        size = decimal.Decimal(risk / 100 * account_balance) / decimal.Decimal(current_price)
-    elif side == "sell":
-        size = decimal.Decimal(risk / 100 * account_balance)
-
-    # Round the order size to the specified decimal places.
-    size_to_exchange = round(size, decimal_places)
-
-    return float(size_to_exchange)
-
 def getAccountBalance(client, currency):
     """
     Retrieve the available balance of a specific currency in the account.
@@ -254,7 +120,7 @@ def dump(potential_trades):
     Returns:
         None
     """
-    file_path = "/root/snipeBot/kucoin_potential_trades.json"
+    file_path = "/root/snipeBot/v1/kucoin_potential_trades.json"
 
     with open(file_path, "r") as trade_file:
         data = json.load(trade_file)
@@ -277,10 +143,6 @@ def dump(potential_trades):
 
     with open(file_path, "w") as trade_file:
         json.dump(filtered_trades, trade_file)
-
-def buildPair(base,quote):
-    symbol = base.upper() + '-' + quote.upper()
-    return symbol
 
 def filterPairs(client, pairs):
     """

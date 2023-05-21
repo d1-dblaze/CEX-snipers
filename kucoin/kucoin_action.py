@@ -107,100 +107,12 @@ def custom_market_buy_order (client,symbol,size):
             logger.info("Error encountered while placing an order: {}".format(error_message))
             return error_message
 
-def clean(account_balance, details, current_price, side, risk_percentage):
-    """
-    Clean and process data for order size calculation.
-
-    Args:
-        account_balance (float): The account balance to consider for risk calculation.
-        details (dict): Details of the trading pair or instrument.
-        current_price (float): The current price of the asset.
-        side (str): The side of the trade, either "buy" or "sell".
-        risk_percentage (float): The risk percentage to consider for order size calculation.
-
-    Returns:
-        float: The cleaned and calculated order size.
-
-    """
-    logger.info("Cleaning data")
-
-    decimal.getcontext().rounding = decimal.ROUND_DOWN
-
-    # Convert the risk percentage to float.
-    risk = float(risk_percentage)
-
-    # Extract the base increment value for order size calculation.
-    base_increment = details['baseIncrement']
-
-    # Determine the number of decimal places for rounding.
-    decimal_places = len(base_increment.split(".")[-1])
-
-    logger.info("The order size should be rounded to %d decimal places", decimal_places)
-
-    # Calculate the order size based on the side of the trade.
-    if side == "buy":
-        size = decimal.Decimal(risk / 100 * account_balance) / decimal.Decimal(current_price)
-    elif side == "sell":
-        size = decimal.Decimal(risk / 100 * account_balance)
-
-    # Round the order size to the specified decimal places.
-    size_to_exchange = round(size, decimal_places)
-
-    return float(size_to_exchange)
-
-def getAccountBalance(client, currency):
-    """
-    Retrieve the available balance of a specific currency in the account.
-
-    Args:
-        client: The client object for interacting with the exchange.
-        currency (str): The currency symbol to retrieve the balance for.
-
-    Returns:
-        float or str: The available balance of the currency as a float if it exists, or an error message as a string.
-    """
-    logger.info("Retrieving account details")
-
-    # Retrieve account information for the specified currency
-    account_info = client.privateGetAccounts({"currency": currency})['data']
-    logger.info("Account information: {}".format(account_info))
-
-    # Find the trade account with available balance
-    trade_accounts = [info for info in account_info if info['type'] == 'trade']
-    if trade_accounts:
-        available_balance = float(trade_accounts[0]['available'])
-        return available_balance
-
-    # Return an error message if no trade account with available balance is found
-    error_message = "No trade account with available balance for the specified currency"
-    logger.info(error_message)
-    return error_message
-
-def getSymbolDetail(client, symbol):
-    """
-    Retrieve details of a specific symbol from the exchange.
-
-    Args:
-        client: The client object for interacting with the exchange.
-        symbol (str): The symbol to retrieve details for.
-
-    Returns:
-        dict or None: Details of the symbol if found, None otherwise.
-    """
-    symbol_list = client.publicGetSymbols()['data']
-
-    for symbol_info in symbol_list:
-        if symbol_info['symbol'] == symbol:
-            return symbol_info
-
-    return None  # Symbol not found, return None
-
 def readTradeList():
     """
     Reads and returns the data from the trade list file.
     """
     try:
-        with open("/root/snipeBot/kucoin_potential_trades.json", 'r') as trade_list:
+        with open("/root/snipeBot/v1/kucoin_potential_trades.json", 'r') as trade_list:
             data = json.load(trade_list)
         return data
     except FileNotFoundError:
@@ -215,7 +127,7 @@ def rewrite(trade):
     Rewrites the trade list file after removing the specified trade.
     """
     try:
-        with open("/root/snipeBot/kucoin_potential_trades.json", 'r') as trade_list:
+        with open("/root/snipeBot/v1/kucoin_potential_trades.json", 'r') as trade_list:
             data = json.load(trade_list)
             data.remove(trade)
         with open("/root/snipeBot/v1/kucoin_potential_trades.json", 'w') as trade_list:
@@ -230,7 +142,7 @@ def dump(monitoring):
     Dumps the monitoring data to the trade list file.
     """
     try:
-        with open("/root/snipeBot/kucoin_trade_list.json", "w") as trade_list:
+        with open("/root/snipeBot/v1/kucoin_trade_list.json", "w") as trade_list:
             json.dump(monitoring, trade_list)
     except FileNotFoundError:
         logger.error("Trade list file not found.")

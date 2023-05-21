@@ -59,9 +59,6 @@ def libraryConnect():
 
     return handle
 
-def return_unique_id():
-    return ''.join([each for each in str(uuid1()).split('-')])
-
 def custom_market_sell_order(client, symbol, size):
     """
     Place a market sell order on Kucoin and handle errors with retries.
@@ -181,7 +178,7 @@ def readTradeList():
     Reads and returns the data from the trade list file.
     """
     try:
-        with open("/root/snipeBot/kucoin_trade_list.json", 'r') as trade_list:
+        with open("/root/snipeBot/v1/kucoin_trade_list.json", 'r') as trade_list:
             data = json.load(trade_list)
         return data
     except FileNotFoundError:
@@ -196,7 +193,7 @@ def rewrite(trade):
     Rewrites the trade list file after removing the specified trade.
     """
     try:
-        with open("/root/snipeBot/kucoin_trade_list.json", 'r') as trade_list:
+        with open("/root/snipeBot/v1/kucoin_trade_list.json", 'r') as trade_list:
             data = json.load(trade_list)
             data.remove(trade)
         with open("/root/snipeBot/v1/kucoin_trade_list.json", 'w') as trade_list:
