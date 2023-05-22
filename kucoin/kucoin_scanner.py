@@ -110,10 +110,9 @@ def writeToFile (filename):
         file.write(str(client.fetch_markets()))
 
 def extract_unique_trade_signals(list_A, list_B):
-    trade_signals_A = set(item['trade_signal'] for item in list_A)
-    trade_signals_B = set(item['trade_signal'] for item in list_B)
-    unique_trade_signals = trade_signals_A - trade_signals_B
-    return list(unique_trade_signals)
+    trade_signals_B = {trade['trade_signal'] for trade in list_B}
+    unique_trades = [trade for trade in list_A if trade['trade_signal'] not in trade_signals_B]
+    return unique_trades
 
 def dump(potential_trades):
     """
