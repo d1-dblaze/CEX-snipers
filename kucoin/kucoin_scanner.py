@@ -109,6 +109,12 @@ def writeToFile (filename):
     with open ("{}".format(filename), "a") as file:
         file.write(str(client.fetch_markets()))
 
+def extract_unique_trade_signals(list_A, list_B):
+    trade_signals_A = set(item['trade_signal'] for item in list_A)
+    trade_signals_B = set(item['trade_signal'] for item in list_B)
+    unique_trade_signals = trade_signals_A - trade_signals_B
+    return list(unique_trade_signals)
+
 def dump(potential_trades):
     """
     Dump the potential trades to a JSON file, while removing duplicates.
@@ -121,27 +127,10 @@ def dump(potential_trades):
     """
     file_path = "/root/snipeBot/kucoin_potential_trades.json"
 
-    with open(file_path, "r") as trade_file:
+    with open(file_path, "a") as trade_file:
         data = json.load(trade_file)
-
-        # Create a new list to store the filtered potential trades
-        filtered_trades = []
-
-        for obj in potential_trades:
-            trade_signal_exists = False
-
-            for data_obj in data:
-                # Check if the trade_signal already exists in the file
-                if obj['trade_signal'] == data_obj['trade_signal']:
-                    trade_signal_exists = True
-                    logger.info("{} already exists in the file. Removing".format(data_obj['trade_signal']))
-                    break  # No need to continue checking once a match is found
-
-            if not trade_signal_exists:
-                filtered_trades.append(obj)
-
-    with open(file_path, "w") as trade_file:
-        json.dump(filtered_trades, trade_file)
+        unique_trade_signals = extract_unique_trade_signals(potential_trades, data)
+        data.append(unique_trade_signals)
 
 def filterPairs(client, pairs):
     """
