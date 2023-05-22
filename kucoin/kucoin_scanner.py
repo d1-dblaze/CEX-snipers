@@ -127,10 +127,14 @@ def dump(potential_trades):
     """
     file_path = "/root/snipeBot/kucoin_potential_trades.json"
 
-    with open(file_path, "a") as trade_file:
+    with open(file_path, "r") as trade_file:
         data = json.load(trade_file)
         unique_trade_signals = extract_unique_trade_signals(potential_trades, data)
-        data.append(unique_trade_signals)
+        data.extend(unique_trade_signals)
+
+    with open(file_path, "w") as trade_file:
+        json.dump(data, trade_file)
+
 
 def filterPairs(client, pairs):
     """
