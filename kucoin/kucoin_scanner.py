@@ -134,7 +134,6 @@ def dump(potential_trades):
     with open(file_path, "w") as trade_file:
         json.dump(data, trade_file)
 
-
 def filterPairs(client, pairs):
     """
     Filter symbols with multiple pairs and choose only one pair from each symbol.
@@ -355,8 +354,10 @@ def main():
                         "maxSize":      maxSize,
                         "size":         size
                     })
-                    logger.info("Potential trades: {}".format(potential_trades))
-                    dump(potential_trades)
+                    pairs_to_trade.remove(trade_signal)
+
+                logger.info("Potential trades to dump into file : {}".format(potential_trades))
+                dump(potential_trades)
 
             else:
                 logger.debug("No new pair(s) found")
