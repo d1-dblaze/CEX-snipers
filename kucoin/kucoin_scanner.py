@@ -326,6 +326,7 @@ def main():
                     #logger.info ("basecurrency: {}".format(baseCurr))
                     quoteCurr = symbolDetail['quoteCurrency']
                     #logger.info ("quotecurrency: {}".format(quoteCurr))
+                    base_increment = symbolDetail['baseIncrement']
                     current_price = client.publicGetMarketStats({"symbol": trade_signal})['data']['last']
                     logger.info("Current price: {}".format(current_price))
                     # keep retrying the loop till you can get the currently trading price.
@@ -335,7 +336,7 @@ def main():
                         continue
 
                     logger.debug("Time at which there is price: {}".format(time.gmtime()))
-                    size = funds[trade_signal]
+                    fundAllocated = funds[trade_signal]
                     
                     #check if the useAllAssets is false, then
                     #check if the quotecurrency is a supported asset.
@@ -352,11 +353,13 @@ def main():
                         "quoteCurr":    quoteCurr,
                         "minSize":      minSize,
                         "maxSize":      maxSize,
-                        "size":         size
+                        "base_increment":base_increment,
+                        "fund_allocated":fundAllocated
                     })
+
                     pairs_to_trade.remove(trade_signal)
 
-                logger.info("Potential trades to dump into file : {}".format(potential_trades))
+                logger.info("Potential trade(s) to dump into file : {}".format(potential_trades))
                 dump(potential_trades)
 
             else:
