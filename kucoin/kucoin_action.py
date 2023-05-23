@@ -1,6 +1,7 @@
 import os
 import ccxt
 import logging
+import decimal
 import logging.handlers
 import time
 import json
@@ -60,6 +61,35 @@ def libraryConnect():
 
 def return_unique_id():
     return ''.join([each for each in str(uuid1()).split('-')])
+
+def clean(balance_allocated, base_increment, current_price):
+    """
+    Clean and process data for order size calculation.
+
+    Args:
+        balance_allocated (float): The balance allocated for the asset.
+        base_increment (float): 
+        current_price (float): The current price of the asset.
+        
+    Returns:
+        float: The cleaned and calculated order size.
+
+    """
+    logger.debug("Cleaning data")
+
+    decimal.getcontext().rounding = decimal.ROUND_DOWN
+
+    # Determine the number of decimal places for rounding.
+    decimal_places = len(base_increment.split(".")[-1])
+
+    logger.debug("The order size should be rounded to %d decimal places", decimal_places)
+
+    size = decimal.Decimal(balance_allocated) / decimal.Decimal(current_price)
+
+    # Round the order size to the specified decimal places.
+    size_to_exchange = round(size, decimal_places)
+
+    return float(size_to_exchange)
 
 def custom_market_buy_order (client,symbol,size):
     """
@@ -182,9 +212,14 @@ def process_trade(client, trade):
     base_currency = trade['baseCurr']
     quote_currency = trade['quoteCurr']
     trade_signal = trade['trade_signal']
-    size = trade['size']
 
-    logger.info("Size to buy: {}".format(size))
+    #Parameters and function to calculate the order size.
+    fund_allocated = trade['fundAllocated']
+    base_increment = trade['baseIncrement']
+    current_price = client.publicGetMarketStats({"symbol": trade_signal})['data']['last']
+    size = clean(fund_allocated,base_increment,current_price)
+
+    logger.info("{} Size to buy: {}".format(trade_signal,size))
 
     if min_size <= size <= max_size:
         place_market_buy_order(client, base_currency, quote_currency, trade_signal, size, trade)
