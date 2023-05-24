@@ -233,28 +233,31 @@ def main():
             continue
 
         for trade in monitoring:    
-            logger.info("Checking pairs in the monitoring list") 
-            symbolDetail = getSymbolDetail(client,trade['symbol'])     
-            baseCurr = symbolDetail['baseCurrency']
-            #logger.info ("basecurrency: {}".format(baseCurr))
-            account_balance = getAccountBalance(client,baseCurr)   
-            current_price = float(client.publicGetMarketStats({"symbol":trade["symbol"]})['data']['last'])
-            #target price is 20% greater than the opening price.
-            open_price = float(trade["openPrice"])
-            print("open price: {}".format(open_price))
-            target_price = open_price * 1.2
-            #At the moment, stop_loss is 20% lower than the opening price
-            stop_loss = open_price * 0.8
-            size = clean(account_balance,symbolDetail,current_price,"sell",100)
-            logger.info("size to sell: {}".format(size))
+            try: 
+                logger.info("Checking pairs in the monitoring list") 
+                symbolDetail = getSymbolDetail(client,trade['symbol'])     
+                baseCurr = symbolDetail['baseCurrency']
+                #logger.info ("basecurrency: {}".format(baseCurr))
+                account_balance = getAccountBalance(client,baseCurr)   
+                current_price = float(client.publicGetMarketStats({"symbol":trade["symbol"]})['data']['last'])
+                #target price is 20% greater than the opening price.
+                open_price = float(trade["openPrice"])
+                logger.info("open price: {}".format(open_price))
+                target_price = open_price * 1.2
+                #At the moment, stop_loss is 20% lower than the opening price
+                stop_loss = open_price * 0.8
+                size = clean(account_balance,symbolDetail,current_price,"sell",100)
+                logger.info("size to sell: {}".format(size))
 
-            if current_price >= target_price or current_price <= stop_loss:
-                custom_market_sell_order(client,trade["symbol"],size)
-                if current_price >= target_price:
-                    print("Pair {} closed with a 20% gain".format(trade['symbol']))
-                else:
-                    print("{} stopped out with a 20% loss".format(trade['symbol']))
-                rewrite(trade)
+                if current_price >= target_price or current_price <= stop_loss:
+                    custom_market_sell_order(client,trade["symbol"],size)
+                    if current_price >= target_price:
+                        logger.info("Pair {} closed with a 20% gain".format(trade['symbol']))
+                    else:
+                        logger.error("{} stopped out with a 20% loss".format(trade['symbol']))
+                    rewrite(trade)
+            except Exception as err:
+                logger.error("Error processing sell trade: {}".format(err))
                     
         time.sleep(1)
 
