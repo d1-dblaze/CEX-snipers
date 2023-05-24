@@ -336,7 +336,7 @@ def main():
                         continue
 
                     logger.debug("Time at which there is price: {}".format(time.gmtime()))
-                    fundAllocated = funds[trade_signal]
+                    fund_allocated = funds[trade_signal]
                     
                     #check if the useAllAssets is false, then
                     #check if the quotecurrency is a supported asset.
@@ -354,7 +354,7 @@ def main():
                         "minSize":      minSize,
                         "maxSize":      maxSize,
                         "base_increment":base_increment,
-                        "fund_allocated":fundAllocated
+                        "fund_allocated":fund_allocated
                     })
 
                     pairs_to_trade.remove(trade_signal)

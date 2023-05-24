@@ -214,8 +214,8 @@ def process_trade(client, trade):
     trade_signal = trade['trade_signal']
 
     #Parameters and function to calculate the order size.
-    fund_allocated = trade['fundAllocated']
-    base_increment = trade['baseIncrement']
+    fund_allocated = trade['fund_allocated']
+    base_increment = trade['base_increment']
     current_price = client.publicGetMarketStats({"symbol": trade_signal})['data']['last']
     size = clean(fund_allocated,base_increment,current_price)
 
