@@ -228,6 +228,8 @@ def process_trade(client, trade):
         place_market_buy_order(client, base_currency, quote_currency, trade_signal, size)
 
 def place_market_buy_order(client, base_currency, quote_currency, trade_signal, size, trade):
+    #symbol_for_order = BTC/USDT
+    #symbol_for_retrieving_info = BTC-USDT
     symbol = "{}/{}".format(base_currency, quote_currency)
     logger.info("Trying to place a market buy order for symbol: {}".format(symbol))
 
