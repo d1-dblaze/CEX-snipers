@@ -24,7 +24,7 @@ def getmylogger(name):
     formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] [MODULE::%(module)s] [MESSAGE]:: %(message)s')
     
     # Configure the file handler for logging to a file with rotating file names
-    file_handler = logging.handlers.TimedRotatingFileHandler("action.log", when="midnight")
+    file_handler = logging.handlers.TimedRotatingFileHandler("../logs/kucoin_action.log", when="midnight")
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
     

@@ -13,7 +13,7 @@ load_dotenv()
 def getmylogger(name):
     formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] [MODULE::%(module)s] [MESSAGE]:: %(message)s')
     
-    file_handler = logging.handlers.TimedRotatingFileHandler("monitor.log",when= "midnight")
+    file_handler = logging.handlers.TimedRotatingFileHandler("../logs/mexc_monitor.log",when= "midnight")
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
     console_handler = logging.StreamHandler()
