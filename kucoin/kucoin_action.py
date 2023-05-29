@@ -230,7 +230,10 @@ def process_trade(client, trade):
 def place_market_buy_order(client, base_currency, quote_currency, trade_signal, size, trade):
     #symbol_for_order = BTC/USDT
     #symbol_for_retrieving_info = BTC-USDT
-    symbol = "{}/{}".format(base_currency, quote_currency)
+    #symbol = "{}/{}".format(base_currency, quote_currency)
+    #for some reasons unknown, it keeps throwing error for symbols with a / so 
+    # I'm sticking with symbols wth - for the main time 
+    symbol = trade_signal
     logger.info("Trying to place a market buy order for symbol: {}".format(symbol))
 
     try:
