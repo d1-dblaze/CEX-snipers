@@ -126,6 +126,11 @@ def custom_market_buy_order (client,symbol,size):
                 logger.info("Encountered rate limit error. Retrying order placement (Attempt {})".format(counter))
                 counter += 1
                 time.sleep(1)  # Sleep for one second between retries
+            elif 'kucoin does not have market symbol' in error_message:
+                symbol_alt = symbol.replace('-','/')
+                result = client.create_order(symbol_alt, 'market', 'buy', size)
+                status = True  # Set status to true once the order is executed without errors
+                return result
             else:
                 # Handle other exchange errors
                 logger.info("Error encountered while placing an order: {}".format(error_message))
