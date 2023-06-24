@@ -23,7 +23,7 @@ def getmylogger(name):
     formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] [MODULE::%(module)s] [MESSAGE]:: %(message)s')
     
     # Configure the file handler for logging to a file with rotating file names
-    file_handler = logging.handlers.TimedRotatingFileHandler("../logs/kucoin_scanner.log", when="midnight")
+    file_handler = logging.handlers.TimedRotatingFileHandler("../logs/kucoin/kucoin_scanner.log", when="midnight")
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
     
@@ -192,7 +192,7 @@ def filterETFPairs(pairs):
 
 def allocateFunds(pairs, account_balance):
     """
-    Allocate equal funds to each tradable pair.
+    Allocate equal funds to each tradable pair based on maxTradePerAccount.
 
     Args:
         pairs (list): A list of tradeable pairs.
@@ -225,6 +225,21 @@ def allocateFunds(pairs, account_balance):
 
     # Return the dictionary with allocated funds for each pair
     return funds
+    
+def countPotentialTrades ():
+    """
+    Returns the number of trades in the trade file.
+    """
+    try:
+        with open("/root/snipeBot/v1/kucoin_potential_trades.json", 'r') as trade_list:
+            data = json.load(trade_list)
+        return len(data)
+    except FileNotFoundError:
+        logger.error("Trade list file not found.")
+        return 0
+    except json.JSONDecodeError:
+        logger.error("Error decoding JSON data from the trade list file.")
+        return 0
 
 def queryCEXKucoin():
     """
@@ -282,6 +297,7 @@ def main():
     #list of supported assets
     supportedAsset = ['USDT'] #['USDT','USDC','BUSD','DAI']
     useAllAssets = False
+    maxTradePerAccount = 2
     client = libraryConnect()
     n = 0
     while True:
@@ -307,6 +323,17 @@ def main():
                     logger.info("New Pair found. Adding to list of tradeable pairs!")
             
             if len(pairs_to_trade) > 0:
+                #if the number of trades in the file is >= max allowed trade, ignore any new potential trades.
+                if countPotentialTrades() >= maxTradePerAccount:
+                    logger.debug("Reached maximum trade count. Ignoring new pairs.")
+                    for trade in pairs_to_trade:
+                        old_symbol_dict['Pairs'].append(trade)
+                    pairs_to_trade.clear()
+                    continue 
+
+                if len(pairs_to_trade) > countPotentialTrades():
+                    pairs_to_trade = pairs_to_trade[:maxTradePerAccount]
+
                 logger.info('{} pairs available to trade!'.format(len(pairs_to_trade)))
                 filtered_pairs = filterPairs(client,pairs_to_trade)
                 account_balance = getAccountBalance(client,"USDT")
