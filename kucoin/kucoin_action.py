@@ -24,7 +24,7 @@ def getmylogger(name):
     formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] [MODULE::%(module)s] [MESSAGE]:: %(message)s')
     
     # Configure the file handler for logging to a file with rotating file names
-    file_handler = logging.handlers.TimedRotatingFileHandler("../logs/kucoin_action.log", when="midnight")
+    file_handler = logging.handlers.TimedRotatingFileHandler("../logs/kucoin/kucoin_action.log", when="midnight")
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
     
@@ -230,14 +230,15 @@ def process_trade(client, trade):
         place_market_buy_order(client, base_currency, quote_currency, trade_signal, size, trade)
     elif size > max_size:
         size = max_size
-        place_market_buy_order(client, base_currency, quote_currency, trade_signal, size)
+        place_market_buy_order(client, base_currency, quote_currency, trade_signal, size, trade)
+    elif size < min_size:
+        logger.info("{} Size to buy= {} is less than minSize allowed= {}, removing!".format(trade_signal,size,min_size))
+        rewrite(trade)
 
 def place_market_buy_order(client, base_currency, quote_currency, trade_signal, size, trade):
     #symbol_for_order = BTC/USDT
     #symbol_for_retrieving_info = BTC-USDT
     #symbol = "{}/{}".format(base_currency, quote_currency)
-    #for some reasons unknown, it keeps throwing error for symbols with a / so 
-    # I'm sticking with symbols wth - for the main time 
     symbol = trade_signal
     logger.info("Trying to place a market buy order for symbol: {}".format(symbol))
 
