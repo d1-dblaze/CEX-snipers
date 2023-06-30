@@ -24,7 +24,7 @@ def getmylogger(name):
     formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] [MODULE::%(module)s] [MESSAGE]:: %(message)s')
     
     # Configure the file handler for logging to a file with rotating file names
-    file_handler = logging.handlers.TimedRotatingFileHandler("../logs/kucoin_monitoring.log", when="midnight")
+    file_handler = logging.handlers.TimedRotatingFileHandler("../logs/kucoin/kucoin_monitoring.log", when="midnight")
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
     
@@ -259,7 +259,7 @@ def process_trade(client, trade):
     stop_loss = open_price * 0.8
     
     size = clean(account_balance,symbolDetail,current_price,"sell",100)
-    logger.info("{} size to sell: {}".format(trade_signal,size))
+    logger.info("{} size to sell: {} at TP: {} or SL: {}".format(trade_signal,size,target_price,stop_loss))
 
     if current_price >= target_price or current_price <= stop_loss:
         #symbol_for_order = BTC/USDT

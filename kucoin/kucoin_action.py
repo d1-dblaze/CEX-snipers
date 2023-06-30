@@ -121,12 +121,14 @@ def custom_market_buy_order (client,symbol,size):
             time.sleep(1)  # Sleep for one second between retries
         except ccxt.ExchangeError as e:
             error_message = str(e)
+            logger.info("Encountered this Exchange error - {}".format(e))
             if 'Too many requests' in error_message:
                 # Handle rate limit error (Too many requests)
                 logger.info("Encountered rate limit error. Retrying order placement (Attempt {})".format(counter))
                 counter += 1
                 time.sleep(1)  # Sleep for one second between retries
             elif 'kucoin does not have market symbol' in error_message:
+                logger.info(("Switching to alt symbol"))
                 symbol_alt = symbol.replace('-','/')
                 result = client.create_order(symbol_alt, 'market', 'buy', size)
                 status = True  # Set status to true once the order is executed without errors

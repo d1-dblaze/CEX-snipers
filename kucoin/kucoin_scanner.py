@@ -231,7 +231,7 @@ def countPotentialTrades ():
     Returns the number of trades in the trade file.
     """
     try:
-        with open("/root/snipeBot/v1/kucoin_potential_trades.json", 'r') as trade_list:
+        with open("/root/snipeBot/kucoin_potential_trades.json", 'r') as trade_list:
             data = json.load(trade_list)
         return len(data)
     except FileNotFoundError:
@@ -300,6 +300,7 @@ def main():
     maxTradePerAccount = 2
     client = libraryConnect()
     n = 0
+    
     while True:
         if n < 1 :
             try:
@@ -325,7 +326,7 @@ def main():
             if len(pairs_to_trade) > 0:
                 #if the number of trades in the file is >= max allowed trade, ignore any new potential trades.
                 if countPotentialTrades() >= maxTradePerAccount:
-                    logger.debug("Reached maximum trade count. Ignoring new pairs.")
+                    logger.info("Reached maximum trade count. Ignoring new pairs.")
                     for trade in pairs_to_trade:
                         old_symbol_dict['Pairs'].append(trade)
                     pairs_to_trade.clear()
