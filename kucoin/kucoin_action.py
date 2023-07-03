@@ -128,7 +128,8 @@ def custom_market_buy_order (client,symbol,size):
                 counter += 1
                 time.sleep(1)  # Sleep for one second between retries
             elif 'kucoin does not have market symbol' in error_message:
-                logger.info(("Switching to alt symbol"))
+                logger.info("Switching to alt symbol")
+                time.sleep(1)
                 symbol_alt = symbol.replace('-','/')
                 result = client.create_order(symbol_alt, 'market', 'buy', size)
                 status = True  # Set status to true once the order is executed without errors
@@ -178,8 +179,12 @@ def dump(monitoring):
     Dumps the monitoring data to the trade list file.
     """
     try:
+        with open("/root/snipeBot/kucoin_trade_list.json", 'r') as trade_list:
+            data = json.load(trade_list)
+            for trade in monitoring:
+                data.append(trade)
         with open("/root/snipeBot/kucoin_trade_list.json", "w") as trade_list:
-            json.dump(monitoring, trade_list)
+            json.dump(data, trade_list)
     except FileNotFoundError:
         logger.error("Trade list file not found.")
     except (json.JSONDecodeError, ValueError):
