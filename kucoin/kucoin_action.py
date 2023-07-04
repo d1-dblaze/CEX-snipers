@@ -134,6 +134,11 @@ def custom_market_buy_order (client,symbol,size):
                 result = client.create_order(symbol_alt, 'market', 'buy', size)
                 status = True  # Set status to true once the order is executed without errors
                 return result
+            elif 'kucoin Balance insufficient' in error_message:
+                logger.info("Balance insufficient, removing trade_signal")
+                removeFromFile(symbol)
+                status = True  # Set status to true 
+                return error_message
             else:
                 # Handle other exchange errors
                 logger.info("Error encountered while placing an order: {}".format(error_message))
@@ -167,6 +172,24 @@ def rewrite(trade):
         with open("/root/snipeBot/kucoin_potential_trades.json", 'r') as trade_list:
             data = json.load(trade_list)
             data.remove(trade)
+        with open("/root/snipeBot/kucoin_potential_trades.json", 'w') as trade_list:
+            json.dump(data, trade_list)
+    except FileNotFoundError:
+        logger.error("Trade list file not found.")
+    except (json.JSONDecodeError, ValueError):
+        logger.error("Error decoding JSON data from the trade list file.")
+
+def removeFromFile(symbol:str):
+    """
+    Rewrites the trade list file after removing the specified trade.
+    """
+    sym = symbol if symbol.find('-') != -1 else symbol.replace('/', '-')
+    try:
+        with open("/root/snipeBot/kucoin_potential_trades.json", 'r') as trade_list:
+            data:list = json.load(trade_list)
+            for trade in data:
+                if trade['trade_signal'] == sym:        
+                    data.remove(trade)
         with open("/root/snipeBot/kucoin_potential_trades.json", 'w') as trade_list:
             json.dump(data, trade_list)
     except FileNotFoundError:
