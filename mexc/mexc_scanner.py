@@ -1,12 +1,10 @@
 import os
 import ccxt
-import requests
 import json
 import logging
 import logging.handlers
 import time
 import decimal
-from uuid import uuid1
 from dotenv import load_dotenv
                
 load_dotenv()
@@ -198,7 +196,7 @@ def filterETFPairs(pairs):
 
 def allocateFunds(pairs, account_balance):
     """
-    Allocate equal funds to each tradable pair based on the total account balance.
+    Allocate equal funds to each tradable pair based on maxTradePerAccount.
 
     Args:
         pairs (list): A list of tradeable pairs.
@@ -207,24 +205,82 @@ def allocateFunds(pairs, account_balance):
     Returns:
         dict: A dictionary with the allocated funds for each pair.
     """
-    allocated_funds = {}
+    # Set the rounding mode to round down
+    decimal.getcontext().rounding = decimal.ROUND_DOWN
 
-    # Convert the account balance to a Decimal for precise calculations
-    total_balance = decimal.Decimal(str(account_balance))
-
-    # Check if there are any pairs to allocate funds to
-    if len(pairs) == 0:
-        return allocated_funds
-
+    # Initialize an empty dictionary to store the allocated funds
+    funds = {}
+    # Get the number of pairs
+    number_of_pairs = len(pairs)
+    # If there are no pairs, return the empty funds dictionary
+    if number_of_pairs == 0:
+        return funds
     # Calculate the fund allocation for each pair
-    fund_per_pair = total_balance / len(pairs)
-
-    # Allocate funds equally to each pair
+    fund_per_pair = decimal.Decimal(account_balance) / decimal.Decimal(number_of_pairs)
+    # Allocate funds to each pair
     for pair in pairs:
-        allocated_funds[pair] = float(fund_per_pair)
+        # Round the allocated funds to 3 decimal places
+        allocated_funds = round(float(fund_per_pair), 3)
+        # Assign the allocated funds to the pair
+        funds[pair] = allocated_funds
 
-    logger.info("Allocated funds: {}".format(allocated_funds))
-    return allocated_funds
+    # Log the allocated funds
+    logger.info("Allocated funds: {}".format(funds))
+
+    # Return the dictionary with allocated funds for each pair
+    return funds
+
+def passExchangeSymbol(client, symbol):
+    #not all symbols received are active to be traded via the api
+    #This function checks for the active flag thanks to ccxt
+    market = client.market(symbol)
+    if market["active"]: 
+        return True 
+    else:
+        return False
+
+def filterSymbolList(client, symbols):
+    # Filter only markets with 
+    # - spot == True
+    # - status == ENABLED
+    # - and among the whitelisted symbols available for trade via API on mexc
+    filtered_symbolList = [
+        symbol
+        for symbol in symbols
+        if symbol['spot'] and symbol['info']['status'] == 'ENABLED' and passExchangeSymbol(client, symbol['info']['symbol'])
+    ]
+    
+    #spot pairs e.g BTCUSDT
+    spot_pairs = [
+        symbol['info']['symbol']
+        for symbol in filtered_symbolList
+    ]
+
+    # Extract unique base asset symbols
+    #e.g USDT, BTC
+    symbols = list(set(
+            symbol['info']['baseAsset'] 
+            for symbol in filtered_symbolList 
+        ))
+    
+    #print(spot_pairs)
+    
+    return spot_pairs,symbols
+
+def countPotentialTrades ():
+    """
+    Returns the number of trades in the trade file.
+    """
+    try:
+        with open("/root/snipeBot/mexc_potential_trades.json", 'r') as trade_list:
+            data = json.load(trade_list)
+        return len(data)
+    except FileNotFoundError:
+        logger.error("Trade list file not found.")
+        return 0
+    except json.JSONDecodeError:
+        logger.error("Error decoding JSON data from the trade list file.")
+        return 0
 
 def queryCEXMEXC(client):
     """
@@ -236,31 +292,30 @@ def queryCEXMEXC(client):
     Returns:
         dict: A dictionary containing the list of tokens and trading pairs.
     """
-    while True:
+        # Initialize an empty dictionary to store the safe symbols and trading pairs
+    safe_list = {'Symbols': [], 'Pairs': []}
+
+    # Set initial values
+    status = False
+
+    # Keep querying until successful
+    while not status:
         try:
-            symbol_list = client.fetch_markets()
-            # Filter only spot markets with status ENABLED
-            spot_symbols = [
-                symbol['info']['symbol']
-                for symbol in symbol_list
-                if symbol['spot'] and symbol['info']['status'] == 'ENABLED'
-            ]
-            # Extract unique base asset symbols
-            symbols = list(set(
-                    symbol['info']['baseAsset'] 
-                    for symbol in symbol_list 
-                    if symbol['spot'] and symbol['info']['status'] == 'ENABLED'
-                ))
-            break
+            # Fetch the market list from Mexc
+            symbolList = client.fetch_markets()
+            status = True  # Set status to True to exit the loop if successful
+            time.sleep(1)
         except Exception as err:
-            logger.info("Failed to get market list")
+            logger.info("Failed to get Market List")
             logger.info("ERROR - {}".format(err))
             time.sleep(2)
+            continue
 
-    safe_list = {
-        'Symbols': symbols,
-        'Pairs': spot_symbols
-    }
+    spot_pairs, symbols = filterSymbolList(client,symbolList)
+
+    # Update the safe_list dictionary with the symbols and pairs
+    safe_list['Symbols'] = symbols
+    safe_list['Pairs'] = spot_pairs
 
     logger.info("Market successfully retrieved from MEXC!")
     return safe_list
@@ -330,12 +385,12 @@ def main():
                     "trade_signal": trade_signal,
                     "fund_allocated": fund_allocated
                 })
-                logger.info("Potential trades to dump into file : {}".format(potential_trades))
+                logger.info("Potential trade(s) to dump into file : {}".format(potential_trades))
                 dump(potential_trades)
 
-        else:
-            logger.debug("No new pair(s) found")
-
+            else:
+                logger.debug("No new pair(s) found")
+    
         time.sleep(1)
 
 if __name__ == "__main__":
