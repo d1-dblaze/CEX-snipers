@@ -282,12 +282,9 @@ def countPotentialTrades ():
         logger.error("Error decoding JSON data from the trade list file.")
         return 0
 
-def queryCEXMEXC(client):
+def queryCEXMEXC():
     """
     Query MEXC, fetch the market list, and filter only spot markets.
-
-    Args:
-        client: The client object for interacting with the MEXC exchange.
 
     Returns:
         dict: A dictionary containing the list of tokens and trading pairs.
@@ -317,45 +314,62 @@ def queryCEXMEXC(client):
     safe_list['Symbols'] = symbols
     safe_list['Pairs'] = spot_pairs
 
-    logger.info("Market successfully retrieved from MEXC!")
+    #logger.info("Market successfully retrieved from MEXC!")
     return safe_list
 
 def main():
     global client
     old_symbol_dict = dict()
+    pairs_to_trade = []
     potential_trades = []
     #list of supported assets
     supportedAsset = ['USDT'] #['USDT','USDC','BUSD','DAI']
     useAllAssets = False
+    maxTradePerAccount = 2
     client = libraryConnect()
     n = 0
+    
     while True:
         if n < 1 :
             try:
                 old_symbol_dict = queryCEXMEXC()
                 n = n+1
+                continue
             except Exception:
                 time.sleep(2)
                 continue
         else:
             new_symbol_dict = queryCEXMEXC()
             
-            # Check for new symbols and pairs
+        # Check for new symbols and pairs
         new_symbols = set(new_symbol_dict['Symbols']) - set(old_symbol_dict['Symbols'])
         new_pairs = set(new_symbol_dict['Pairs']) - set(old_symbol_dict['Pairs'])
 
+        #update the old_symbol_dict with the latest info and proceed with other computation
         for symbol in new_symbols:
             old_symbol_dict['Symbols'].append(symbol)
 
         for pair in new_pairs:
             old_symbol_dict['Pairs'].append(pair)
-            logger.info("New Pair found. Adding to list of tradeable pairs!")
+            pairs_to_trade = list(new_pairs)
+            #logger.info("New Pair found. Adding to list of tradeable pairs!")
 
-        if new_pairs:
-            logger.info('{} pair(s) available to trade!'.format(len(new_pairs)))
+        if pairs_to_trade:
+            #if the number of trades in the file is >= max allowed trade, ignore any new potential trades.
+            if countPotentialTrades() >= maxTradePerAccount:
+                logger.info("Reached maximum trade count. Ignoring new pairs.")
+                for trade in pairs_to_trade:
+                    old_symbol_dict['Pairs'].append(trade)
+                pairs_to_trade.clear()
+                continue 
+
+            if len(pairs_to_trade) > countPotentialTrades():
+                pairs_to_trade = pairs_to_trade[:maxTradePerAccount]
+                
+            logger.info('{} pair(s) available to trade!'.format(len(pairs_to_trade)))
 
             # Filter the pairs based on specific criteria (if needed)
-            filtered_pairs = filterPairs(client, list(new_pairs))
+            filtered_pairs = filterPairs(client, pairs_to_trade)
 
             # Get the account balance for a specific currency (e.g., "USDT")
             account_balance = getAccountBalance(client, "USDT")
@@ -368,9 +382,23 @@ def main():
 
             for trade_signal in filtered_pairs:
                 symbol_detail = getSymbolDetail(client, trade_signal)
+                min_size = symbol_detail["quoteAmountPrecisionMarket"]
+                max_size = symbol_detail["maxQuoteAmountMarket"]
                 base_asset = symbol_detail['baseAsset']
                 quote_asset = symbol_detail['quoteAsset']
+                base_increment = symbol_detail["baseSizePrecision"]
+                current_price = ""
+                logger.info("Current price: {}".format(current_price))
+                
+                # keep retrying the loop till you can get the currently trading price.
+                # the thing is, there are cases where the pair might not have started trading but visible through the api
+                if current_price == None:
+                    logger.debug("Time at which there is no price: {}".format(time.gmtime()))
+                    continue
 
+                logger.debug("Time at which there is price: {}".format(time.gmtime()))
+                fund_allocated = funds[trade_signal]
+                
                 #check if the useAllAssets is false, then
                 #check if the quotecurrency is a supported asset.
                 #If it is not, remove the asset from the list of tradeable assets.
@@ -383,15 +411,24 @@ def main():
                 fund_allocated = funds[trade_signal]
                 potential_trades.append({
                     "trade_signal": trade_signal,
+                    "baseCurr":     base_asset,
+                    "quoteCurr":    quote_asset,
+                    "minSize":      min_size,
+                    "maxSize":      max_size,
+                    "base_increment":base_increment,
                     "fund_allocated": fund_allocated
                 })
-                logger.info("Potential trade(s) to dump into file : {}".format(potential_trades))
-                dump(potential_trades)
+                
+                pairs_to_trade.remove(trade_signal)
+                
+            logger.info("Potential trade(s) to dump into file : {}".format(potential_trades))
+            dump(potential_trades)
 
-            else:
-                logger.debug("No new pair(s) found")
+        else:
+            logger.debug("No new pair(s) found")
     
         time.sleep(1)
 
 if __name__ == "__main__":
     main()
+
