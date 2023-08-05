@@ -243,35 +243,54 @@ def main():
             monitoring = readTradeList()
         except Exception:
             continue         
-
-        logger.info("Checking pairs in the monitoring list") 
-        for trade in monitoring: 
-            logger.info("Monitoring {}".format(trade['symbol']))    
-            symbolDetail = getSymbolDetail(client,trade['symbol'])    
-            baseCurr = symbolDetail['baseAsset']
-            prec = symbolDetail['baseAssetPrecision']
-            current_price = float(client.fetchTicker(trade['symbol'])['info']['lastPrice'])
-            account_balance = getAccountBalance(client,baseCurr) 
-            #target price is 20% greater than the opening price.
-            open_price = float(trade["openPrice"])
-            logger.info("open price: {}".format(open_price))
-            target_price = open_price + (0.2 * open_price)
-            #At the moment, stop_loss is 20% lower than the opening price
-            stop_loss = open_price - (0.2 * open_price)
-            #size = round(account_balance,prec)
-            size = clean(account_balance,current_price,"sell",100)
-            logger.info("size to sell: {}".format(size))
-
-            if current_price >= target_price:
-                custom_market_sell_order(client,trade["symbol"],size)
-                logger.info("Pair {} succesfully closed with a 20% gain".format(trade["symbol"]))
-                rewrite(trade)
-            if current_price <= stop_loss:
-                custom_market_sell_order(client,trade["symbol"],size)
-                logger.info("{} was stopped out with a 20% loss".format(trade["symbol"]))
-                rewrite(trade)
+        
+        if monitoring:     
+            logger.info("Checking pairs in the monitoring list") 
+            
+            for trade in monitoring: 
+                try:
+                    process_trade(client,trade)
+                except Exception as err:
+                    logger.error("Error processing sell trade: {}".format(err))
                 
         time.sleep(1)
+
+def process_trade(client, trade):
+    trade_signal = trade["symbol"]  
+    logger.info("Monitoring {}".format(trade_signal)) 
+    symbolDetail = getSymbolDetail(client,trade_signal)   
+    baseCurr = symbolDetail['baseAsset']
+    quoteCurr = symbolDetail['quoteAsset']
+    account_balance = getAccountBalance(client,baseCurr)   
+    current_price = get_current_price(client,trade_signal)
+    
+    #target price is 20% greater than the opening price.
+    open_price = float(trade["openPrice"])
+    logger.info("open price: {}".format(open_price))
+    target_price = open_price * 1.2
+    #At the moment, stop_loss is 20% lower than the opening price
+    stop_loss = open_price * 0.8
+    
+    size = clean(account_balance,symbolDetail,current_price,"sell",100)
+    logger.info("{} size to sell: {} at TP: {} or SL: {}".format(trade_signal,size,target_price,stop_loss))
+
+    if current_price >= target_price or current_price <= stop_loss:
+        logger.info("Trying to place a market sell order for symbol: {}".format(trade_signal))
+
+        try:
+            custom_market_sell_order(client,trade_signal,size)
+            if current_price >= target_price:
+                logger.info("Pair {} closed with a 20% gain".format(trade_signal))
+            else:
+                logger.error("{} stopped out with a 20% loss".format(trade_signal))
+            rewrite(trade)
+        except Exception as err:
+            logger.error("Could not place order! Error occurred - {}".format(err))
+
+def get_current_price(client, trade_signal):
+    response = client.fetchTicker(trade_signal)
+    last_price = float(response['info']['lastPrice'])
+    return last_price
 
 if __name__ == "__main__":
     main()
