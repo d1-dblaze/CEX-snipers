@@ -11,15 +11,29 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def getmylogger(name):
+    """
+    Create and configure a logger with file and console handlers.
+
+    Args:
+        name (str): The name of the logger.
+
+    Returns:
+        logging.Logger: The configured logger.
+
+    """
     formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] [MODULE::%(module)s] [MESSAGE]:: %(message)s')
     
-    file_handler = logging.handlers.TimedRotatingFileHandler("../logs/mexc_action.log",when= "midnight")
+    # Configure the file handler for logging to a file with rotating file names
+    file_handler = logging.handlers.TimedRotatingFileHandler("../logs/mexc/mexc_action.log",when= "midnight")
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
+    
+    # Configure the console handler for logging to the console
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.DEBUG)
     console_handler.setFormatter(formatter) 
 
+    # Create a logger and add the file handler and console handler
     loggerHandle = logging.getLogger(name)
     loggerHandle.addHandler(file_handler)
     loggerHandle.addHandler(console_handler)
@@ -47,57 +61,7 @@ def libraryConnect():
 def return_unique_id():
     return ''.join([each for each in str(uuid1()).split('-')])
  
-#check for the error here
-def custom_market_buy_order (client,symbol,qSize):
-    """
-    Function to place buy order on MEXC
-    """
-    #This needs to return the price at which the order was opened
-    #alongside the order result.
-    """
-    This while loop is there to curb the 429 "Too many request" error which always lead
-    to loss of trades.
-    """
-    status = False          #status of the order
-    counter = 0             #Retry counter
-    #while the order status is false, keep trying to place the order
-    while status == False:
-        try: 
-            time.sleep(1) #sleep for one sec
-            #logger.info("symbol type is : {}".format(type(symbol)))
-            result = client.spotPrivatePostOrder({
-                "symbol":symbol,
-                "side":"BUY",
-                "type":"MARKET",
-                "quoteOrderQty":10
-                })
-        except Exception as e:
-            #returns the string representation of the execution error
-            err = repr(e)
-            #if the MEXC "Too many request" error is present, leave status as false and continue the loop
-            if '429000' in err:
-                counter += 1
-                logger.info("Encountered MEXC 'Too many Request' Error, Retrying order placement again "+ str(counter))
-                continue
-            #if the http "Too many request" error is present, leave status as false and continue the loop
-            elif '429' in err:
-                time.sleep(4) #sleep for 4 sec
-                logger.info(err)
-                counter += 1
-                logger.info("Encountered Http 'Too many Request' Error, Retrying order placement again "+ str(counter))
-                continue
-            #else, break from the loop and return the error encountered.
-            else:
-                status = True
-                logger.info("Error encountered while placing an order - ".format(err))
-                return err
-        else:
-            #change status to true once the order code execute without errors
-            status = True
-            logger.info("Result from trying to place a trade is: {}".format(result))
-            return result
-            
-def clean (balance_allocated, base_increment, current_price):
+def clean(balance_allocated, base_increment, current_price):
     """
     Clean and process data for order size calculation.
 
@@ -110,59 +74,152 @@ def clean (balance_allocated, base_increment, current_price):
         float: The cleaned and calculated order size.
 
     """
-    
-    logger.info("======cleaning data =======")
-    decimal.getcontext().rounding = decimal.ROUND_DOWN
-    #convert the risk% to float.
-    risk = float(riskP)
+    logger.debug("Cleaning data")
 
-    #if side is buy, calculate the size with the formula below
-    if side == "buy":    
-        size = decimal.Decimal(risk/100 * accountBalance) / decimal.Decimal(current_price)
-        #round down to the nearest whole number.
-        size_to_exchange = round(size)
-        #if side is sell, sell 100% of the asset.
-    elif side == 'sell':
-        size = decimal.Decimal(risk/100 * accountBlance) * decimal.Decimal(1)
-        size_to_exchange = round(size)
+    decimal.getcontext().rounding = decimal.ROUND_DOWN
+
+    # Determine the number of decimal places for rounding.
+    decimal_places = int(base_increment)
+
+    logger.debug("The order size should be rounded to %d decimal places", decimal_places)
+
+    size = decimal.Decimal(balance_allocated) / decimal.Decimal(current_price)
+
+    # Round the order size to the specified decimal places.
+    size_to_exchange = round(size, decimal_places)
 
     return float(size_to_exchange)
 
-def getAccountBalance (client,currency):
-    logger.info ("======Retrieving account Details======")
-    acctInfo = client.spotPrivateGetAccount()
-    logger.info("acctInfo: {} ".format (acctInfo))
-    
-    for asset in acctInfo["balances"]:
-        if asset['asset'] == currency:
-            availableBalance = asset['free']
-            #test
-            logger.info('Available balance: {}'.format(availableBalance))
-            return float(availableBalance)
+def custom_market_buy_order (client,symbol,size):
+    """
+    Place a market buy order on mexc and handle errors with retries.
 
-def getSymbolDetail (client, symbol):
-    symbolList = client.spotPublicGetExchangeInfo()['symbols']
-    for n in symbolList:
-        if n['symbol'] == symbol:
-            return n
-        
+    Args:
+        client: The CCXT client instance for mexc.
+        symbol (str): The trading symbol for the order.
+        size: The size or quantity to buy.
+
+    Returns:
+        dict or str: The order result if successful, or the encountered error.
+
+    """
+    # Retry counter and order status
+    counter = 0
+    status = False
+    
+    #while the order status is false, keep trying to place the order
+    while not status:
+        try: 
+            time.sleep(1) #sleep for one sec
+            result = client.spotPrivatePostOrder({
+                "symbol": symbol,
+                "side": "BUY",
+                "type": "MARKET",
+                "quoteOrderQty": size
+            })
+            status = True
+            return result
+        except ccxt.RequestTimeout as e:
+            # Handle request timeout error
+            logger.info("Encountered request timeout error. Retrying order placement (Attempt {})".format(counter))
+            if counter == 3:
+                status = True
+                return e
+            counter += 1
+            time.sleep(1)  # Sleep for one second between retries
+        except ccxt.InsufficientFunds as e:                       
+            logger.info("Balance insufficient!")
+            status = True  # Set status to true 
+            return e
+        except ccxt.ExchangeError as e:
+            error_message = str(e)
+            logger.info("Encountered this Exchange error - {}".format(e))
+            if 'Too many requests' in error_message:
+                # Handle rate limit error (Too many requests)
+                logger.info("Encountered rate limit error. Retrying order placement (Attempt {})".format(counter))
+                if counter == 3:
+                    status = True
+                    break
+                counter += 1
+                time.sleep(1)  # Sleep for one second between retries
+            else:
+                # Handle other exchange errors
+                logger.info("Error encountered while placing an order: {}".format(error_message))
+                return error_message
+        except Exception as e:
+            # Handle general exceptions
+            error_message = str(e)
+            logger.info("Error encountered while placing an order: {}".format(error_message))
+            return error_message
+
 def readTradeList():
-    with open("/root/snipeBot/mexc_potential_trades.json", 'r') as trade_list:
-        data = json.load(trade_list)
-    return data
+    """
+    Reads and returns the data from the trade list file.
+    """
+    try:
+        with open("/root/snipeBot/mexc_potential_trades.json", 'r') as trade_list:
+            data = json.load(trade_list)
+        return data
+    except FileNotFoundError:
+        logger.error("Trade list file not found.")
+        return None
+    except json.JSONDecodeError:
+        logger.error("Error decoding JSON data from the trade list file.")
+        return None
 
 def rewrite(trade):
-    with open("/root/snipeBot/mexc_potential_trades.json",'w') as trade_list:
-        data = json.load(trade_list)
-        data.remove(trade)
-        json.dump(data)
+    """
+    Rewrites the trade list file after removing the specified trade.
+    """
+    try:
+        with open("/root/snipeBot/mexc_potential_trades.json", 'r') as trade_list:
+            data = json.load(trade_list)
+            data.remove(trade)
+        with open("/root/snipeBot/mexc_potential_trades.json", 'w') as trade_list:
+            json.dump(data, trade_list)
+    except FileNotFoundError:
+        logger.error("Trade list file not found.")
+    except (json.JSONDecodeError, ValueError):
+        logger.error("Error decoding JSON data from the trade list file.")
+
+def removeFromFile(symbol:str):
+    """
+    Rewrites the trade list file after removing the specified trade.
+    """
+    sym = symbol if symbol.find('-') != -1 else symbol.replace('/', '-')
+    try:
+        with open("/root/snipeBot/mexc_potential_trades.json", 'r') as trade_list:
+            data:list = json.load(trade_list)
+            for trade in data:
+                if trade['trade_signal'] == sym:        
+                    data.remove(trade)
+        with open("/root/snipeBot/mexc_potential_trades.json", 'w') as trade_list:
+            json.dump(data, trade_list)
+    except FileNotFoundError:
+        logger.error("Trade list file not found.")
+    except (json.JSONDecodeError, ValueError):
+        logger.error("Error decoding JSON data from the trade list file.")
 
 def dump(monitoring):
-    with open("/root/snipeBot/mexc_trade_list.json","w") as trade_list:
-        json.dump(monitoring,trade_list)
-
+    """
+    Dumps the monitoring data to the trade list file.
+    """
+    try:
+        with open("/root/snipeBot/mexc_trade_list.json", 'r') as trade_list:
+            data = json.load(trade_list)
+            for trade in monitoring:
+                data.append(trade)
+        with open("/root/snipeBot/mexc_trade_list.json", "w") as trade_list:
+            json.dump(data, trade_list)
+    except FileNotFoundError:
+        logger.error("Trade list file not found.")
+    except (json.JSONDecodeError, ValueError):
+        logger.error("Error encoding JSON data to the trade list file.")                    
+        
 def main():
     global client
+    global monitoring
+    
     monitoring = []
     client = libraryConnect()
 
@@ -170,64 +227,72 @@ def main():
         try:
             trade_list = readTradeList()
         except Exception as err:
+            logger.error("Error reading trade list: {}".format(err))
             continue
 
-        for trade in trade_list:
-            trade_signal = trade['trade_signal']
-            qsize = trade['qsize']
-
-            minSize_USDT = 5.0    
-            maxSize_USDT = 5000000.0
-
-            logger.info("size to buy: {}".format(qsize))
-
-            if qsize > minSize_USDT and qsize < maxSize_USDT:
-                try:
-                    logger.info("Trying to place an order on {}".format(trade_signal))
-                    order = custom_market_buy_order(client,trade_signal,10)
-                    try:
-                        orderId = order["orderId"]
-                        if orderId:
-                            logger.info("Successfully opened a trade on {0} with order_id {1}".format(trade_signal,orderId))
-                            open_price = order['price']
-                            monitoring.append({
-                                'symbol': trade_signal,
-                                'openPrice': open_price
-                                })
-                            #dump the monitoring list to a file.
-                            dump(monitoring)
-                            rewrite(trade)
-
-                    except KeyError:
-                        logger.info("Could not place order!")
-
-                except Exception as err: 
-                    logger.info('Could not place order! This error Occurred - {}'.format(err))
+        if trade_list:
+            logger.info("{} trade object(s) available in the list".format(len(trade_list)))
             
-            elif qsize > maxSize_USDT:
-                qsize = maxSize_USDT
+            for trade in trade_list:
                 try:
-                    order = custom_market_buy_order(client,trade_signal,qsize)
-                    try:
-                        orderId = order["orderId"]
-                        if orderId:
-                            logger.info("Successfully opened a trade on {0} with order_id {1}".format(trade_signal,orderId))
-                            open_price = order['price']
-                            monitoring.append({
-                                'symbol': trade_signal,
-                                'openPrice': open_price
-                                })
-                            #dump the monitoring list to a file.
-                            dump(monitoring)
-                            rewrite(trade)
-
-                    except KeyError:
-                        logger.info("Could not place order!")
-
-                except Exception as err: 
-                    logger.info('Could not place order! This error Occurred - {}'.format(err))
-
+                    process_trade(client, trade)
+                except Exception as err:
+                    logger.error("Error processing trade: {}".format(err))
+                    
+        else:
+            logger.debug("No trade object found in trade list")
+            
         time.sleep(1)
 
+def process_trade(client, trade):
+    min_size = trade['minSize']
+    max_size = trade['maxSize']
+    base_currency = trade['baseCurr']
+    quote_currency = trade['quoteCurr']
+    trade_signal = trade['trade_signal']
+
+    #Parameters and function to calculate the order size.
+    fund_allocated = trade['fund_allocated']
+    base_increment = trade['base_increment']
+    current_price =  client.fetchTicker(trade_signal)['info']['lastPrice']
+    size = clean(fund_allocated,base_increment,current_price)
+
+    logger.info("{} Size to buy: {}".format(trade_signal,size))
+
+    if min_size <= size <= max_size:
+        place_market_buy_order(client, trade_signal, size, trade)
+    elif size > max_size:
+        size = max_size
+        place_market_buy_order(client, trade_signal, size, trade)
+    elif size < min_size:
+        logger.info("{} Size to buy= {} is less than minSize allowed= {}, removing!".format(trade_signal,size,min_size))
+        rewrite(trade)
+
+def place_market_buy_order(client, trade_signal, size, trade):
+    symbol = trade_signal
+    logger.info("Trying to place a market buy order for symbol: {}".format(symbol))
+
+    try:
+        order = custom_market_buy_order(client, symbol, size)
+
+        if 'orderId' in order:
+            order_id = order['orderId']
+            logger.info("Successfully opened a trade on {} with order_id {}".format(symbol, order_id))
+            open_price = order['price']
+            update_monitoring_list(trade_signal, open_price)
+            rewrite(trade)
+        else:
+            logger.info("Market buy was not sucessful!")
+
+    except Exception as err:
+        logger.error("Could not place order! Error occurred - {}".format(err))
+
+def update_monitoring_list(trade_signal, open_price):
+    monitoring.append({
+        'symbol': trade_signal,
+        'openPrice': open_price
+    })
+    dump(monitoring)
+    
 if __name__ == "__main__":
     main()
