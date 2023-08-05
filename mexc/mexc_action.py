@@ -97,7 +97,20 @@ def custom_market_buy_order (client,symbol,qSize):
             logger.info("Result from trying to place a trade is: {}".format(result))
             return result
             
-def clean (accountBalance,current_price,side,riskP):
+def clean (balance_allocated, base_increment, current_price):
+    """
+    Clean and process data for order size calculation.
+
+    Args:
+        balance_allocated (float): The balance allocated for the asset.
+        base_increment (float): 
+        current_price (float): The current price of the asset.
+        
+    Returns:
+        float: The cleaned and calculated order size.
+
+    """
+    
     logger.info("======cleaning data =======")
     decimal.getcontext().rounding = decimal.ROUND_DOWN
     #convert the risk% to float.
@@ -110,7 +123,7 @@ def clean (accountBalance,current_price,side,riskP):
         size_to_exchange = round(size)
         #if side is sell, sell 100% of the asset.
     elif side == 'sell':
-        size = decimal.Decimal(risk/100 * accountBalance) * decimal.Decimal(1)
+        size = decimal.Decimal(risk/100 * accountBlance) * decimal.Decimal(1)
         size_to_exchange = round(size)
 
     return float(size_to_exchange)
