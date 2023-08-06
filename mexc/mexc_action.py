@@ -97,7 +97,7 @@ def custom_market_buy_order (client,symbol,size):
     Args:
         client: The CCXT client instance for mexc.
         symbol (str): The trading symbol for the order.
-        size: The size or quantity to buy.
+        size: The size or quantity to buy in quote currency.
 
     Returns:
         dict or str: The order result if successful, or the encountered error.
@@ -116,6 +116,79 @@ def custom_market_buy_order (client,symbol,size):
                 "side": "BUY",
                 "type": "MARKET",
                 "quoteOrderQty": size
+            })
+            status = True
+            return result
+        except ccxt.RequestTimeout as e:
+            # Handle request timeout error
+            logger.info("Encountered request timeout error. Retrying order placement (Attempt {})".format(counter))
+            if counter == 3:
+                status = True
+                return e
+            counter += 1
+            time.sleep(1)  # Sleep for one second between retries
+        except ccxt.InsufficientFunds as e:                       
+            logger.info("Balance insufficient!")
+            status = True  # Set status to true 
+            return e
+        #except other exchange errors
+        except ccxt.ExchangeError as e:
+            error_message = str(e)
+            logger.info("Encountered this Exchange error - {}".format(e))
+
+            if 'Too many requests' in error_message:
+                # Handle rate limit error (Too many requests)
+                logger.info("Encountered rate limit error. Retrying order placement (Attempt {})".format(counter))
+                if counter == 3:
+                    status = True
+                    break
+                counter += 1
+                time.sleep(1)  # Sleep for one second between retries
+            elif "api market order is disabled" in error_message:
+                logger.info("Market order is disabled, trying limit order")
+                custom_limit_buy_order(client,symbol,size)
+            else:
+                # Handle other exchange errors
+                logger.info("Error encountered while placing an order: {}".format(error_message))
+                return error_message
+        except Exception as e:
+            # Handle general exceptions
+            error_message = str(e)
+            logger.info("Error encountered while placing an order: {}".format(error_message))
+            return error_message
+
+def custom_limit_buy_order (client,symbol,fund_allocated):
+    """
+    Place a limit buy order on mexc and handle errors with retries.
+
+    Args:
+        client: The CCXT client instance for mexc.
+        symbol (str): The trading symbol for the order.
+        fund_allocated: amount to buy in quote currency.
+
+    Returns:
+        dict or str: The order result if successful, or the encountered error.
+
+    """
+    # Retry counter and order status
+    counter = 0
+    status = False
+    
+    #while the order status is false, keep trying to place the order
+    while not status:
+        try: 
+            time.sleep(1) #sleep for one sec
+            current_price = get_current_price(client,symbol)
+            base_increment = trade['base_increment']
+            #size to buy in base currency
+            size = clean(fund_allocated,base_increment,current_price)
+
+            result = client.spotPrivatePostOrder({
+                "symbol": symbol,
+                "side": "BUY",
+                "type": "LIMIT",
+                "quantity": size,
+                "price": current_price
             })
             status = True
             return result
@@ -151,7 +224,7 @@ def custom_market_buy_order (client,symbol,size):
             error_message = str(e)
             logger.info("Error encountered while placing an order: {}".format(error_message))
             return error_message
-
+        
 def readTradeList():
     """
     Reads and returns the data from the trade list file.
@@ -219,6 +292,7 @@ def dump(monitoring):
 def main():
     global client
     global monitoring
+    global trade
     
     monitoring = []
     client = libraryConnect()
@@ -247,14 +321,10 @@ def main():
 def process_trade(client, trade):
     min_size = trade['minSize']
     max_size = trade['maxSize']
-    base_currency = trade['baseCurr']
-    quote_currency = trade['quoteCurr']
     trade_signal = trade['trade_signal']
 
-    #Parameters and function to calculate the order size.
+    #fund_allocated is in the quote currency
     fund_allocated = trade['fund_allocated']
-    base_increment = trade['base_increment']
-    current_price =  client.fetchTicker(trade_signal)['info']['lastPrice']
     
     #in mexc, when placing market order, we specify the quantity in
     #the quote currency and not base currency.
@@ -296,6 +366,18 @@ def update_monitoring_list(trade_signal, open_price):
         'openPrice': open_price
     })
     dump(monitoring)
+
+def get_current_price(client, trade_signal):
+    response = client.fetchTicker(trade_signal)
+    last_price = float(response['info']['lastPrice'])
+    return last_price
+
+def test():
+    client = libraryConnect()
+    order = custom_market_buy_order(client, "YGGUSDT",6)
+    #order = custom_limit_buy_order(client, "YGGUSDT",10)
+    print(order)
     
 if __name__ == "__main__":
-    main()
+    #main()
+    test()
