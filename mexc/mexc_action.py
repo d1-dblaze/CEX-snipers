@@ -146,7 +146,8 @@ def custom_market_buy_order (client,symbol,size):
                 time.sleep(1)  # Sleep for one second between retries
             elif "api market order is disabled" in error_message:
                 logger.info("Market order is disabled, trying limit order")
-                custom_limit_buy_order(client,symbol,size)
+                result = custom_limit_buy_order(client,symbol,size) 
+                return result
             else:
                 # Handle other exchange errors
                 logger.info("Error encountered while placing an order: {}".format(error_message))
@@ -373,8 +374,11 @@ def get_current_price(client, trade_signal):
     return last_price
 
 def test():
+    global trade 
+    
+    trade = {"base_increment": '4'}
     client = libraryConnect()
-    order = custom_market_buy_order(client, "YGGUSDT",6)
+    order = custom_market_buy_order(client, "YGGUSDT",5.5)
     #order = custom_limit_buy_order(client, "YGGUSDT",10)
     print(order)
     
