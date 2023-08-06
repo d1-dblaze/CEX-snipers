@@ -79,7 +79,7 @@ def clean(balance_allocated, base_increment, current_price):
     decimal.getcontext().rounding = decimal.ROUND_DOWN
 
     # Determine the number of decimal places for rounding.
-    decimal_places = int(base_increment)
+    decimal_places = len(base_increment.split(".")[-1])
 
     logger.debug("The order size should be rounded to %d decimal places", decimal_places)
 

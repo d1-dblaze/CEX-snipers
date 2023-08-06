@@ -143,11 +143,9 @@ def clean(account_balance, details, current_price, side, risk_percentage):
     # Convert the risk percentage to float.
     risk = float(risk_percentage)
 
-    # Extract the base increment value for order size calculation.
-    base_increment = details['baseAssetPrecision']
-
-    # convert decimal place to int.
-    decimal_places = int(base_increment)
+    # Determine the number of decimal places for rounding.
+    base_increment = details['baseSizePrecision']
+    decimal_places = len(base_increment.split(".")[-1])
 
     logger.debug("The order size should be rounded to %d decimal places", decimal_places)
 
