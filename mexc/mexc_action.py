@@ -255,7 +255,10 @@ def process_trade(client, trade):
     fund_allocated = trade['fund_allocated']
     base_increment = trade['base_increment']
     current_price =  client.fetchTicker(trade_signal)['info']['lastPrice']
-    size = clean(fund_allocated,base_increment,current_price)
+    
+    #in mexc, when placing market order, we specify the quantity in
+    #the quote currency and not base currency.
+    size = fund_allocated
 
     logger.info("{} Size to buy: {}".format(trade_signal,size))
 
