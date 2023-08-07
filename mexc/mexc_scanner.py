@@ -387,7 +387,7 @@ def main():
                 base_asset = symbol_detail['baseAsset']
                 quote_asset = symbol_detail['quoteAsset']
                 base_increment = symbol_detail["baseSizePrecision"]
-                current_price = ""
+                current_price = get_current_price(client,trade_signal)
                 logger.info("Current price: {}".format(current_price))
                 
                 # keep retrying the loop till you can get the currently trading price.
@@ -428,6 +428,11 @@ def main():
             logger.debug("No new pair(s) found")
     
         time.sleep(1)
+
+def get_current_price(client, trade_signal):
+    response = client.fetchTicker(trade_signal)
+    last_price = float(response['info']['lastPrice'])
+    return last_price
 
 def test():
     client = libraryConnect()
