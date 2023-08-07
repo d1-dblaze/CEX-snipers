@@ -429,6 +429,24 @@ def main():
     
         time.sleep(1)
 
+def test():
+    client = libraryConnect()
+    symbol_list = [
+        "BTCUSDT",
+        "SIMPSONUSDT",
+        "LTCUSDT",
+        "MAVUSDT",
+        "YGGUSDT",
+        "GTCUSDT",
+        "WLDUSDT"
+    ]
+    for symbol in symbol_list:
+        if passExchangeSymbol(client, symbol):
+            print(f"{symbol} is among supported list")
+            details = getSymbolDetail(client,symbol)
+            print(f"{symbol} details: {details}")
+        
 if __name__ == "__main__":
     main()
+    #test()
 
