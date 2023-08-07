@@ -103,6 +103,79 @@ def custom_market_sell_order (client,symbol,size):
         except ccxt.ExchangeError as e:
             error_message = str(e)
             logger.info("Encountered this Exchange error - {}".format(e))
+            
+            if 'Too many requests' in error_message:
+                # Handle rate limit error (Too many requests)
+                logger.info("Encountered rate limit error. Retrying order placement (Attempt {})".format(counter))
+                if counter == 3:
+                    status = True
+                    break
+                counter += 1
+                time.sleep(1)  # Sleep for one second between retries
+            elif "api market order is disabled" in error_message:
+                logger.info("Market order is disabled, trying limit order")
+                result = custom_limit_sell_order(client,symbol,size) 
+                return result
+            else:
+                # Handle other exchange errors
+                logger.info("Error encountered while placing an order: {}".format(error_message))
+                return error_message
+        except Exception as e:
+            # Handle general exceptions
+            error_message = str(e)
+            logger.info("Error encountered while placing an order: {}".format(error_message))
+            return error_message
+
+def custom_limit_sell_order (client,symbol,size):
+    """
+    Place a limit sell order on mexc and handle errors with retries.
+
+    Args:
+        client: The CCXT client instance for mexc.
+        symbol (str): The trading symbol for the order.
+        size: The size or quantity to sell.
+
+    Returns:
+        dict or str: The order result if successful, or the encountered error.
+
+    """
+    # Retry counter and order status
+    counter = 0
+    status = False
+    
+    #while the order status is false, keep trying to place the order
+    while not status:
+        try: 
+            time.sleep(1) #sleep for one sec
+            current_price = get_current_price(client,symbol)
+
+            result = client.spotPrivatePostOrder({
+                "symbol":symbol,
+                "side":"SELL",
+                "type":"LIMIT",
+                "quantity":size,
+                "price": current_price
+                })
+            
+            logger.info(f"{size}")
+            #change status to true once the order code execute without errors
+            status = True
+            return result
+        except ccxt.RequestTimeout as e:
+            # Handle request timeout error
+            logger.info("Encountered request timeout error. Retrying order placement (Attempt {})".format(counter))
+            if counter == 3:
+                status = True
+                return e
+            counter += 1
+            time.sleep(1)  # Sleep for one second between retries
+        except ccxt.InsufficientFunds as e:                       
+            logger.info("Balance insufficient!")
+            status = True  # Set status to true 
+            return e
+        except ccxt.ExchangeError as e:
+            error_message = str(e)
+            logger.info("Encountered this Exchange error - {}".format(e))
             if 'Too many requests' in error_message:
                 # Handle rate limit error (Too many requests)
                 logger.info("Encountered rate limit error. Retrying order placement (Attempt {})".format(counter))
@@ -120,7 +193,7 @@ def custom_market_sell_order (client,symbol,size):
             error_message = str(e)
             logger.info("Error encountered while placing an order: {}".format(error_message))
             return error_message
-        
+                
 def clean(account_balance, details, current_price, side, risk_percentage):
     """
     Clean and process data for order size calculation.
@@ -286,9 +359,16 @@ def process_trade(client, trade):
             logger.error("Could not place order! Error occurred - {}".format(err))
 
 def get_current_price(client, trade_signal):
-    response = client.fetchTicker(trade_signal)
-    last_price = float(response['info']['lastPrice'])
+    response = client.spotPublicGetTickerPrice({"symbol":trade_signal})
+    last_price = float(response['price'])
     return last_price
 
+def test():
+    client = libraryConnect()
+    order = custom_market_sell_order(client, "YGGUSDT",8.67 )
+    #order = custom_limit_sell_order(client, "YGGUSDT",8.63)
+    print(order)
+    
 if __name__ == "__main__":
-    main()
+    #main()
+    test()
