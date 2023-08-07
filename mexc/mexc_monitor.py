@@ -216,9 +216,16 @@ def clean(account_balance, details, current_price, side, risk_percentage):
     # Convert the risk percentage to float.
     risk = float(risk_percentage)
 
-    # Determine the number of decimal places for rounding.
+    
+    #base increment is the smallest increase in the base price.
     base_increment = details['baseSizePrecision']
-    decimal_places = len(base_increment.split(".")[-1])
+    
+    # Determine the number of decimal places for rounding
+    # mexc sometimes put 0 as the base increment so we try to get it from the price
+    if float(base_increment) == 0.0:
+        decimal_places = len(str(current_price).split(".")[-1])
+    else:
+        decimal_places = len(base_increment.split(".")[-1])
 
     logger.debug("The order size should be rounded to %d decimal places", decimal_places)
 
