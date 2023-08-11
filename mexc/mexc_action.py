@@ -184,6 +184,14 @@ def custom_limit_buy_order (client,symbol,fund_allocated):
         try: 
             time.sleep(1) #sleep for one sec
             current_price = get_current_price(client,symbol)
+            #if current Price is 0 i.e could not retrieve price for asset
+            #retry 3 times and quit if price is still 0
+            if current_price == 0:
+                if counter == 3:
+                    status = True
+                    return ("Could not get current price to calculate size")
+                counter +=1
+                continue
             base_increment = trade['base_increment']
             #size to buy in base currency
             size = clean(fund_allocated,base_increment,current_price)
