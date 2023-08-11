@@ -230,7 +230,7 @@ def allocateFunds(pairs, account_balance):
     # Return the dictionary with allocated funds for each pair
     return funds
 
-def passExchangeSymbol(client, symbol):
+def exchangeSupportSymbol(client, symbol):
     #not all symbols received are active to be traded via the api
     #This function checks for the active flag thanks to ccxt
     market = client.market(symbol)
@@ -247,7 +247,7 @@ def filterSymbolList(client, symbols):
     filtered_symbolList = [
         symbol
         for symbol in symbols
-        if symbol['spot'] and symbol['info']['status'] == 'ENABLED' and passExchangeSymbol(client, symbol['info']['symbol'])
+        if symbol['spot'] and symbol['info']['status'] == 'ENABLED' and exchangeSupportSymbol(client, symbol['info']['symbol'])
     ]
     
     #spot pairs e.g BTCUSDT
