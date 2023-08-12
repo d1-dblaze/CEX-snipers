@@ -134,7 +134,7 @@ def custom_market_buy_order (client,symbol,size):
         except ccxt.InsufficientFunds as e:                       
             logger.info("Balance insufficient!")
             status = True  # Set status to true 
-            return e
+            return str(e)
         #except other exchange errors
         except ccxt.ExchangeError as e:
             error_message = str(e)
@@ -184,6 +184,14 @@ def custom_limit_buy_order (client,symbol,fund_allocated):
         try: 
             time.sleep(1) #sleep for one sec
             current_price = get_current_price(client,symbol)
+            #if current Price is 0 i.e could not retrieve price for asset
+            #retry 3 times and quit if price is still 0
+            if current_price == 0:
+                if counter == 3:
+                    status = True
+                    return ("Could not get current price to calculate size")
+                counter +=1
+                continue
             base_increment = trade['base_increment']
             #size to buy in base currency
             size = clean(fund_allocated,base_increment,current_price)
@@ -324,8 +332,8 @@ def main():
         time.sleep(1)
 
 def process_trade(client, trade):
-    min_size = trade['minSize']
-    max_size = trade['maxSize']
+    min_size = float(trade['minSize'])
+    max_size = float(trade['maxSize'])
     trade_signal = trade['trade_signal']
 
     #fund_allocated is in the quote currency
@@ -333,9 +341,9 @@ def process_trade(client, trade):
     
     #in mexc, when placing market order, we specify the quantity in
     #the quote currency and not base currency.
-    size = fund_allocated
+    size = float(fund_allocated)
 
-    logger.info("{} Size to buy: {}".format(trade_signal,size))
+    logger.info("{} Size to buy: ${}".format(trade_signal,size))
 
     if min_size <= size <= max_size:
         place_market_buy_order(client, trade_signal, size, trade)
@@ -387,5 +395,5 @@ def test():
     print(order)
     
 if __name__ == "__main__":
-    #main()
-    test()
+    main()
+    #test()
