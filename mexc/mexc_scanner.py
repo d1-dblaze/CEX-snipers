@@ -5,6 +5,7 @@ import logging
 import logging.handlers
 import time
 import decimal
+import requests
 from dotenv import load_dotenv
                
 load_dotenv()
@@ -230,14 +231,25 @@ def allocateFunds(pairs, account_balance):
     # Return the dictionary with allocated funds for each pair
     return funds
 
-def exchangeSupportSymbol(client, symbol):
+#need to fix
+#it always return an error for newer symbols.
+"""def exchangeSupportSymbol(client, symbol):
     #not all symbols received are active to be traded via the api
     #This function checks for the active flag thanks to ccxt
     market = client.market(symbol)
     if market["active"]: 
         return True 
     else:
-        return False
+        return False"""
+
+def exchangeSupportSymbol(symbol):
+    url = "https://api.mexc.com/api/v3/defaultSymbols"
+    response = requests.request("GET", url)
+    market = response.json()["data"]
+    if symbol in market:
+        return True
+    
+    return False
 
 def filterSymbolList(client, symbols):
     # Filter only markets with 
