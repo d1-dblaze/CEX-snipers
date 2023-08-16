@@ -382,7 +382,7 @@ def update_monitoring_list(trade_signal, open_price):
 
 def get_current_price(client, trade_signal):
     response = client.fetchTicker(trade_signal)
-    last_price = float(response['info']['lastPrice'])
+    last_price = float(response['info']['askPrice'])
     return last_price
 
 def test():

@@ -366,8 +366,8 @@ def process_trade(client, trade):
             logger.error("Could not place order! Error occurred - {}".format(err))
 
 def get_current_price(client, trade_signal):
-    response = client.spotPublicGetTickerPrice({"symbol":trade_signal})
-    last_price = float(response['price'])
+    response = client.fetchTicker(trade_signal)
+    last_price = float(response['info']['bidPrice'])
     return last_price
 
 def test():
