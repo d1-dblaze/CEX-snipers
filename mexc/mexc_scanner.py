@@ -242,24 +242,16 @@ def allocateFunds(pairs, account_balance):
     else:
         return False"""
 
-def exchangeSupportSymbol(symbol):
-    url = "https://api.mexc.com/api/v3/defaultSymbols"
-    response = requests.request("GET", url)
-    market = response.json()["data"]
-    if symbol in market:
-        return True
-    
-    return False
-
-def filterSymbolList(client, symbols):
+def filterSymbolList(symbols,supportedSymbols):
     # Filter only markets with 
     # - spot == True
     # - status == ENABLED
     # - and among the whitelisted symbols available for trade via API on mexc
+    
     filtered_symbolList = [
         symbol
         for symbol in symbols
-        if symbol['spot'] and symbol['info']['status'] == 'ENABLED' and exchangeSupportSymbol(client, symbol['info']['symbol'])
+        if symbol['spot'] and symbol['info']['status'] == 'ENABLED' and symbol['info']['symbol'] in supportedSymbols
     ]
     
     #spot pairs e.g BTCUSDT
@@ -312,6 +304,9 @@ def queryCEXMEXC():
         try:
             # Fetch the spot market list from Mexc
             symbolList = client.fetch_spot_markets()
+            url = "https://api.mexc.com/api/v3/defaultSymbols"
+            response = requests.request("GET", url)
+            supported_symbols = response.json()["data"]
             status = True  # Set status to True to exit the loop if successful
             time.sleep(1)
         except Exception as err:
@@ -320,7 +315,7 @@ def queryCEXMEXC():
             time.sleep(2)
             continue
 
-    spot_pairs, symbols = filterSymbolList(client,symbolList)
+    spot_pairs, symbols = filterSymbolList(symbolList,supported_symbols)
 
     # Update the safe_list dictionary with the symbols and pairs
     safe_list['Symbols'] = symbols
