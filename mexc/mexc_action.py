@@ -411,9 +411,13 @@ def update_monitoring_list(trade_signal, open_price):
     dump(monitoring)
 
 def get_current_price(client, trade_signal):
-    response = client.fetchTicker(trade_signal)
-    last_price = float(response['info']['askPrice'])
-    return last_price
+    try:
+        response = client.fetchTicker(trade_signal)
+        last_price = float(response['info']['lastPrice'])
+        return last_price
+    except Exception as err:
+        logger.info(f"Could not get current price of {trade_signal}. \n Error encountered {err}")
+        return None
 
 @measure_speed
 def test():
