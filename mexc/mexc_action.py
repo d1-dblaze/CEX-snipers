@@ -210,8 +210,10 @@ def custom_limit_buy_order (client,symbol,fund_allocated):
             #retry 3 times and quit if price is still 0
             if current_price == 0:
                 if counter == 3:
+                    price_error_message = "Could not get current price to calculate size"
                     status = True
-                    return ("Could not get current price to calculate size")
+                    logger.info(price_error_message)
+                    return price_error_message
                 counter +=1
                 continue
             base_increment = trade['base_increment']
