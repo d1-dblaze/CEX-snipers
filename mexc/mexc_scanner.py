@@ -394,16 +394,7 @@ def main():
                 base_asset = symbol_detail['baseAsset']
                 quote_asset = symbol_detail['quoteAsset']
                 base_increment = symbol_detail["baseSizePrecision"]
-                current_price = get_current_price(client,trade_signal)
-                logger.info("Current price: {}".format(current_price))
-                
-                # keep retrying the loop till you can get the currently trading price.
-                # the thing is, there are cases where the pair might not have started trading but visible through the api
-                if current_price == None:
-                    logger.debug("Time at which there is no price: {}".format(time.gmtime()))
-                    continue
 
-                logger.debug("Time at which there is price: {}".format(time.gmtime()))
                 fund_allocated = funds[trade_signal]
                 
                 #check if the useAllAssets is false, then
