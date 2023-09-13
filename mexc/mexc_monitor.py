@@ -5,11 +5,28 @@ import logging.handlers
 import time
 import decimal
 import json
+from functools import wraps
+from time import perf_counter 
 from uuid import uuid1
 from dotenv import load_dotenv
 
 load_dotenv()
 
+def measure_speed(func):
+    '''Decorator to measure the execution time of a function'''
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = perf_counter()
+        func(*args, **kwargs)
+        finish_time = perf_counter()
+        print(f'Function: {func.__name__}')
+        print(f'Method: {func.__doc__}')
+        print(f'Time elapsed in seconds: {finish_time - start_time:.9f}')
+        print(f'{"-"*40}')
+    return wrapper
+
+@measure_speed
 def getmylogger(name):
     """
     Create and configure a logger with file and console handlers.
@@ -43,6 +60,7 @@ def getmylogger(name):
 
 logger = getmylogger(__name__)
  
+@measure_speed
 def libraryConnect():
 
     API_KEY = os.getenv('MEXC_API_KEY')
@@ -57,7 +75,8 @@ def libraryConnect():
     handle.load_markets()
 
     return handle
- 
+
+@measure_speed 
 def custom_market_sell_order (client,symbol,size):
     """
     Place a market sell order on mexc and handle errors with retries.
@@ -126,6 +145,7 @@ def custom_market_sell_order (client,symbol,size):
             logger.info("Error encountered while placing an order: {}".format(error_message))
             return error_message
 
+@measure_speed
 def custom_limit_sell_order (client,symbol,size):
     """
     Place a limit sell order on mexc and handle errors with retries.
@@ -193,7 +213,8 @@ def custom_limit_sell_order (client,symbol,size):
             error_message = str(e)
             logger.info("Error encountered while placing an order: {}".format(error_message))
             return error_message
-                
+
+@measure_speed                
 def clean(account_balance, details, current_price, side, risk_percentage):
     """
     Clean and process data for order size calculation.
@@ -240,6 +261,7 @@ def clean(account_balance, details, current_price, side, risk_percentage):
 
     return float(size_to_exchange)
 
+@measure_speed
 def getAccountBalance (client,currency):
     """
     Retrieve the available balance of a specific currency in the account.
@@ -263,6 +285,7 @@ def getAccountBalance (client,currency):
     
     return 0
 
+@measure_speed
 def readTradeList():
     """
     Reads and returns the data from the trade list file.
@@ -277,7 +300,8 @@ def readTradeList():
     except json.JSONDecodeError:
         logger.error("Error decoding JSON data from the trade list file.")
         return None
-    
+
+@measure_speed    
 def rewrite(trade):
     """
     Rewrites the trade list file after removing the specified trade.
@@ -292,7 +316,8 @@ def rewrite(trade):
         logger.error("Trade list file not found.")
     except (json.JSONDecodeError, ValueError):
         logger.error("Error decoding JSON data from the trade list file.")
-            
+ 
+@measure_speed           
 def getSymbolDetail (client, symbol):
     """
     Retrieve details of a specific symbol from the exchange.
@@ -312,6 +337,7 @@ def getSymbolDetail (client, symbol):
     
     return None  # Symbol not found, return None
 
+@measure_speed
 def main():
     global client
     client = libraryConnect()
@@ -333,6 +359,7 @@ def main():
                 
         time.sleep(1)
 
+@measure_speed
 def process_trade(client, trade):
     trade_signal = trade["symbol"]  
     logger.info("Monitoring {}".format(trade_signal)) 
@@ -365,11 +392,13 @@ def process_trade(client, trade):
         except Exception as err:
             logger.error("Could not place order! Error occurred - {}".format(err))
 
+@measure_speed
 def get_current_price(client, trade_signal):
-    response = client.spotPublicGetTickerPrice({"symbol":trade_signal})
-    last_price = float(response['price'])
+    response = client.fetchTicker(trade_signal)
+    last_price = float(response['info']['bidPrice'])
     return last_price
 
+@measure_speed
 def test():
     client = libraryConnect()
     order = custom_market_sell_order(client, "YGGUSDT",8.67 )

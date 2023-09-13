@@ -5,11 +5,28 @@ import logging
 import logging.handlers
 import time
 import decimal
+from functools import wraps
+from time import perf_counter 
 from uuid import uuid1
 from dotenv import load_dotenv
                
 load_dotenv()
 
+def measure_speed(func):
+    '''Decorator to measure the execution time of a function'''
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = perf_counter()
+        func(*args, **kwargs)
+        finish_time = perf_counter()
+        print(f'Function: {func.__name__}')
+        print(f'Method: {func.__doc__}')
+        print(f'Time elapsed in seconds: {finish_time - start_time:.9f}')
+        print(f'{"-"*40}')
+    return wrapper
+
+@measure_speed
 def getmylogger(name):
     """
     Create and configure a logger with file and console handlers.
@@ -42,7 +59,8 @@ def getmylogger(name):
     return loggerHandle
 
 logger = getmylogger(__name__)
- 
+
+@measure_speed 
 def libraryConnect():
 
     API_KEY = os.getenv('MEXC_API_KEY')
@@ -57,10 +75,12 @@ def libraryConnect():
     handle.load_markets()
 
     return handle
- 
+
+@measure_speed 
 def return_unique_id():
     return ''.join([each for each in str(uuid1()).split('-')])
- 
+
+@measure_speed 
 def clean(balance_allocated, base_increment, current_price):
     """
     Clean and process data for order size calculation.
@@ -94,6 +114,7 @@ def clean(balance_allocated, base_increment, current_price):
 
     return float(size_to_exchange)
 
+@measure_speed
 def custom_market_buy_order (client,symbol,size):
     """
     Place a market buy order on mexc and handle errors with retries.
@@ -162,6 +183,7 @@ def custom_market_buy_order (client,symbol,size):
             logger.info("Error encountered while placing an order: {}".format(error_message))
             return error_message
 
+@measure_speed
 def custom_limit_buy_order (client,symbol,fund_allocated):
     """
     Place a limit buy order on mexc and handle errors with retries.
@@ -188,8 +210,10 @@ def custom_limit_buy_order (client,symbol,fund_allocated):
             #retry 3 times and quit if price is still 0
             if current_price == 0:
                 if counter == 3:
+                    price_error_message = "Could not get current price to calculate size"
                     status = True
-                    return ("Could not get current price to calculate size")
+                    logger.info(price_error_message)
+                    return price_error_message
                 counter +=1
                 continue
             base_increment = trade['base_increment']
@@ -237,7 +261,8 @@ def custom_limit_buy_order (client,symbol,fund_allocated):
             error_message = str(e)
             logger.info("Error encountered while placing an order: {}".format(error_message))
             return error_message
-        
+
+@measure_speed        
 def readTradeList():
     """
     Reads and returns the data from the trade list file.
@@ -253,6 +278,7 @@ def readTradeList():
         logger.error("Error decoding JSON data from the trade list file.")
         return None
 
+@measure_speed
 def rewrite(trade):
     """
     Rewrites the trade list file after removing the specified trade.
@@ -268,6 +294,7 @@ def rewrite(trade):
     except (json.JSONDecodeError, ValueError):
         logger.error("Error decoding JSON data from the trade list file.")
 
+@measure_speed
 def removeFromFile(symbol:str):
     """
     Rewrites the trade list file after removing the specified trade.
@@ -286,6 +313,7 @@ def removeFromFile(symbol:str):
     except (json.JSONDecodeError, ValueError):
         logger.error("Error decoding JSON data from the trade list file.")
 
+@measure_speed
 def dump(monitoring):
     """
     Dumps the monitoring data to the trade list file.
@@ -301,7 +329,8 @@ def dump(monitoring):
         logger.error("Trade list file not found.")
     except (json.JSONDecodeError, ValueError):
         logger.error("Error encoding JSON data to the trade list file.")                    
-        
+
+@measure_speed        
 def main():
     global client
     global monitoring
@@ -331,6 +360,7 @@ def main():
             
         time.sleep(1)
 
+@measure_speed
 def process_trade(client, trade):
     min_size = float(trade['minSize'])
     max_size = float(trade['maxSize'])
@@ -354,6 +384,7 @@ def process_trade(client, trade):
         logger.info("{} Size to buy= {} is less than minSize allowed= {}, removing!".format(trade_signal,size,min_size))
         rewrite(trade)
 
+@measure_speed
 def place_market_buy_order(client, trade_signal, size, trade):
     symbol = trade_signal
     logger.info("Trying to place a market buy order for symbol: {}".format(symbol))
@@ -373,6 +404,7 @@ def place_market_buy_order(client, trade_signal, size, trade):
     except Exception as err:
         logger.error("Could not place order! Error occurred - {}".format(err))
 
+@measure_speed
 def update_monitoring_list(trade_signal, open_price):
     monitoring.append({
         'symbol': trade_signal,
@@ -381,10 +413,15 @@ def update_monitoring_list(trade_signal, open_price):
     dump(monitoring)
 
 def get_current_price(client, trade_signal):
-    response = client.fetchTicker(trade_signal)
-    last_price = float(response['info']['lastPrice'])
-    return last_price
+    try:
+        response = client.fetchTicker(trade_signal)
+        last_price = float(response['info']['lastPrice'])
+        return last_price
+    except Exception as err:
+        logger.info(f"Could not get current price of {trade_signal}. \n Error encountered {err}")
+        return None
 
+@measure_speed
 def test():
     global trade 
     
