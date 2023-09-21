@@ -71,7 +71,7 @@ class MEXCScanner:
         """
         self.logger.info("Retrieving account details")
         # Fetch the account information
-        acct_info = self.client.spotPrivateGetAccount()
+        acct_info = self.client.spotPrivateGetAccount() 
         self.logger.info("acctInfo: {}".format(acct_info))
         
         # Use a list comprehension to extract the available balance for the specified currency
@@ -96,7 +96,7 @@ class MEXCScanner:
         Returns:
             dict or None: The details of the symbol as a dictionary if it exists, or None if not found.
         """
-        symbol_list = self.client.spotPublicGetExchangeInfo()['symbols']
+        symbol_list = self.client.spotPublicGetExchangeInfo()['symbols'] 
         
         # Use a list comprehension to filter the symbol list based on the specified symbol
         symbol_details = [n for n in symbol_list if n['symbol'] == symbol]
@@ -270,7 +270,8 @@ class MEXCScanner:
                 symbol_list = self.client.fetch_spot_markets()
                 url = "https://api.mexc.com/api/v3/defaultSymbols"
                 response = requests.request("GET", url)
-                supported_symbols = response.json()["data"]
+                supported_symbols= response.json()["data"]
+                status = True   # = response.json()["data"]
                 status = True   # Set status to True to exit the loop if successful
                 time.sleep(1)
             except Exception as err:
@@ -383,6 +384,7 @@ class MEXCScanner:
 
                 self.logger.info("Potential trade(s) to dump into file : {}".format(potential_trades))
                 self.dump(potential_trades)
+                potential_trades.clear()   #clear the potential_trades list and start again
 
             else:
                 self.logger.debug("No new pair(s) found")
