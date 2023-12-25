@@ -1,0 +1,13 @@
+[Unit]
+Description=MEXC bot that makes purchases.
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/root/snipeBot/v1/mexc
+Environment="PATH=/root/snipeBot/snipe/bin"
+ExecStart=/bin/bash -c 'source /root/snipeBot/snipe/bin/activate; /root/snipeBot/snipe/bin/python3 mexc_action.py'
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
