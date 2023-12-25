@@ -1,5 +1,6 @@
 .env 
 snipe/
-*.log
+logs/
 kucoinPredictPump.py
-binance_snipe_bot.py
+binance/
+ipykernel_*/
